@@ -1,0 +1,658 @@
+{
+  "id": "basics",
+  "title": { "en": "Language basics", "fr": "Bases du langage" },
+  "tagline": {
+    "en": "Types, null safety, smart casts, ranges",
+    "fr": "Types, null safety, smart casts, ranges"
+  },
+  "icon": "🧱",
+  "lessons": [
+    {
+      "id": "types-inference",
+      "title": {
+        "en": "Types & inference",
+        "fr": "Types & inférence"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "Everything is an object in Kotlin's type system: no primitive types at the language level, even if `Int` or `Double` compile down to JVM primitives when possible. The root is `Any`, nullable root is `Any?`. `Unit` is the singleton returned by functions that return nothing useful; `Nothing` is the type with zero values, used by functions that never return (throw, infinite loop) and as the bottom type of every hierarchy.",
+            "fr": "Tout est objet dans le système de types de Kotlin : pas de types primitifs au niveau du langage, même si `Int` ou `Double` compilent vers des primitifs JVM quand c'est possible. La racine est `Any`, la racine nullable `Any?`. `Unit` est le singleton renvoyé par les fonctions sans résultat utile ; `Nothing` est le type sans aucune valeur, utilisé par les fonctions qui ne rendent jamais la main (throw, boucle infinie) et comme type minimal de toute hiérarchie."
+          }
+        },
+        {
+          "type": "code",
+          "code": "fun fail(msg: String): Nothing = throw IllegalStateException(msg)\n\nval name = person.name ?: fail(\"no name\")\n// name is smart-cast to String: Nothing merges into any type",
+          "caption": {
+            "en": "Nothing makes the elvis branch disappear from the result type.",
+            "fr": "Nothing fait disparaître la branche elvis du type résultat."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "There is no implicit numeric widening: an `Int` is not accepted where a `Long` is expected, you must call `toLong()`. Integer literals are `Int` by default (`Long` with the L suffix), floating literals are `Double` (`Float` with f). Arithmetic between integers stays integer: `7 / 2 == 3`.",
+            "fr": "Il n'y a pas d'élargissement numérique implicite : un `Int` n'est pas accepté là où un `Long` est attendu, il faut appeler `toLong()`. Les littéraux entiers sont `Int` par défaut (`Long` avec le suffixe L), les flottants sont `Double` (`Float` avec f). L'arithmétique entre entiers reste entière : `7 / 2 == 3`."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "Integer overflow is silent: `Int.MAX_VALUE + 1` wraps around to `Int.MIN_VALUE` without any exception. Use `Math.addExact` or `Long` when the range is uncertain. Same trap as Java, but easier to forget in a language that feels safer.",
+            "fr": "Le débordement entier est silencieux : `Int.MAX_VALUE + 1` boucle sur `Int.MIN_VALUE` sans exception. Utilisez `Math.addExact` ou `Long` si la plage est incertaine. Même piège qu'en Java, mais plus facile à oublier dans un langage qui semble plus sûr."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Unsigned types (`UInt`, `ULong`, `UByte`, `UShort`) are stable since 1.5 and useful for protocols and file formats: `0xFFu`, `255u.toUByte()`. They are boxed inline classes, not JVM primitives.",
+            "fr": "Les types non signés (`UInt`, `ULong`, `UByte`, `UShort`) sont stables depuis 1.5, utiles pour les protocoles et formats binaires : `0xFFu`, `255u.toUByte()`. Ce sont des inline classes, pas des primitifs JVM."
+          }
+        }
+      ]
+    },
+    {
+      "id": "val-var-init",
+      "title": {
+        "en": "val, var & initialization",
+        "fr": "val, var & initialisation"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "`val` declares a read-only reference, `var` a mutable one. Read-only is not immutable: a `val` pointing to a `MutableList` still allows mutation of the list. `const val` is a true compile-time constant: top level or inside an object, primitive or String only, inlined at call sites.",
+            "fr": "`val` déclare une référence en lecture seule, `var` une référence mutable. Lecture seule ne veut pas dire immuable : un `val` pointant vers une `MutableList` permet toujours de modifier la liste. `const val` est une vraie constante de compilation : top-level ou dans un object, primitif ou String uniquement, inlinée aux points d'appel."
+          }
+        },
+        {
+          "type": "code",
+          "code": "class Session {\n    val id: String = UUID.randomUUID().toString() // stored once\n    val elapsed: Duration                          // computed each read\n        get() = Duration.between(start, now())\n}",
+          "caption": {
+            "en": "A val with a custom getter has no backing field and can change between reads.",
+            "fr": "Un val avec getter personnalisé n'a pas de backing field et peut varier entre deux lectures."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "A `val` with a custom getter is only \"read-only\", not stable: two consecutive reads can return different values. This is also why the compiler refuses to smart-cast such properties.",
+            "fr": "Un `val` avec getter personnalisé est seulement \"en lecture seule\", pas stable : deux lectures consécutives peuvent renvoyer des valeurs différentes. C'est aussi pourquoi le compilateur refuse le smart cast sur ces propriétés."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "`lateinit var` defers initialization of a non-null property: only for `var`, only for non-primitive types, no custom accessors. Reading it before assignment throws UninitializedPropertyAccessException; test with `::prop.isInitialized`. Prefer `by lazy { ... }` for a `val` computed once on first access (thread-safe by default).",
+            "fr": "`lateinit var` diffère l'initialisation d'une propriété non-nulle : seulement pour `var`, seulement pour les types non primitifs, pas d'accesseurs personnalisés. La lire avant affectation lève UninitializedPropertyAccessException ; testez avec `::prop.isInitialized`. Préférez `by lazy { ... }` pour un `val` calculé une fois au premier accès (thread-safe par défaut)."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Property initializers and init blocks run in declaration order. Referencing a property declared lower in the class from an initializer reads its default (null/0) value through a this-leak; the compiler only catches the simple cases.",
+            "fr": "Les initialiseurs de propriétés et blocs init s'exécutent dans l'ordre de déclaration. Référencer depuis un initialiseur une propriété déclarée plus bas lit sa valeur par défaut (null/0) via une fuite de this ; le compilateur ne détecte que les cas simples."
+          }
+        }
+      ]
+    },
+    {
+      "id": "null-safety",
+      "title": { "en": "Null safety", "fr": "Null safety" },
+      "minutes": 5,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "Nullability is part of the type: `String` never holds null, `String?` may. The compiler forces you to deal with it before dereferencing. The toolbox: safe call `?.` (propagates null), elvis `?:` (default or early exit), safe cast `as?` (null instead of ClassCastException), and the assertion `!!` (throws NPE if null).",
+            "fr": "La nullabilité fait partie du type : `String` ne contient jamais null, `String?` peut-être. Le compilateur force à la traiter avant tout déréférencement. La boîte à outils : appel sûr `?.` (propage null), elvis `?:` (défaut ou sortie anticipée), cast sûr `as?` (null au lieu de ClassCastException), et l'assertion `!!` (NPE si null)."
+          }
+        },
+        {
+          "type": "code",
+          "code": "val port = config.server?.port ?: DEFAULT_PORT\nval user = payload as? User ?: return null\nrequest.header(\"id\")?.let { cache.store(it) }",
+          "caption": {
+            "en": "Idiomatic chains: each operator handles null exactly once.",
+            "fr": "Chaînes idiomatiques : chaque opérateur traite null exactement une fois."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "The elvis right-hand side triggers only on null, not on empty strings or blank values. And `a?.b ?: c` evaluates c when a is null OR when a.b itself is null, a subtlety that bites in chained expressions.",
+            "fr": "Le membre droit d'elvis ne se déclenche que sur null, pas sur une chaîne vide ou blanche. Et `a?.b ?: c` évalue c quand a est null OU quand a.b est lui-même null, subtilité qui pique dans les expressions chaînées."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Types coming from Java without nullability annotations are platform types, noted `String!` in error messages: the compiler trusts you and lets you use them as null or non-null. A wrong guess produces an NPE at runtime, exactly like Java. Annotate your Java (or check at the boundary) to contain them.",
+            "fr": "Les types venant de Java sans annotations de nullabilité sont des platform types, notés `String!` dans les messages d'erreur : le compilateur vous fait confiance et laisse les utiliser comme null ou non-null. Une mauvaise supposition produit une NPE à l'exécution, exactement comme en Java. Annotez votre Java (ou vérifiez à la frontière) pour les contenir."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Treat `!!` as a documented assertion, not a shortcut: legitimate when you hold an invariant the compiler cannot see (e.g. a map you just populated). If you write two `!!` on the same line, restructure instead.",
+            "fr": "Traitez `!!` comme une assertion documentée, pas un raccourci : légitime quand vous détenez un invariant invisible pour le compilateur (ex. une map que vous venez de remplir). Deux `!!` sur la même ligne : restructurez plutôt."
+          }
+        }
+      ]
+    },
+    {
+      "id": "smart-casts",
+      "title": { "en": "Smart casts", "fr": "Smart casts" },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "After a successful `is` check (or a null check), the compiler narrows the type in the stability zone of that check: if branches, the rest of the function after an early return, `when` branches, even conditions combined with `&&` and `||`. Since Kotlin 2.0 (K2), smart casts also survive into closures that provably run before any mutation and flow through more complex conditions.",
+            "fr": "Après un `is` réussi (ou un test de null), le compilateur affine le type dans la zone de stabilité du test : branches if, suite de la fonction après un return anticipé, branches de `when`, conditions combinées avec `&&` et `||`. Depuis Kotlin 2.0 (K2), les smart casts survivent aussi dans des lambdas exécutées de façon prouvable avant toute mutation et traversent des conditions plus complexes."
+          }
+        },
+        {
+          "type": "code",
+          "code": "fun render(node: Node): String = when (node) {\n    is Text      -> node.value          // node: Text here\n    is Container -> node.children.joinToString(\"\") { render(it) }\n    else         -> error(\"unknown node\")\n}",
+          "caption": {
+            "en": "when + is: each branch sees the narrowed type, no explicit cast.",
+            "fr": "when + is : chaque branche voit le type affiné, aucun cast explicite."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Smart casts require stability: the compiler must prove the value cannot change between the check and the use. This excludes `var` properties of classes, any property with a custom getter, `open` properties, and properties from another module. Local `val`s and parameters always qualify.",
+            "fr": "Le smart cast exige la stabilité : le compilateur doit prouver que la valeur ne peut pas changer entre le test et l'usage. Sont exclus : les propriétés `var` de classes, toute propriété à getter personnalisé, les propriétés `open`, et les propriétés d'un autre module. Les `val` locaux et paramètres sont toujours éligibles."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "`if (obj.name != null) obj.name.length` does not compile when name is a mutable or open property: another thread or an override could change it between the two reads. The idiomatic fix is capturing: `val name = obj.name; if (name != null) name.length`, or `obj.name?.let { ... }`.",
+            "fr": "`if (obj.name != null) obj.name.length` ne compile pas quand name est une propriété mutable ou open : un autre thread ou un override pourrait la changer entre les deux lectures. Le correctif idiomatique est la capture : `val name = obj.name; if (name != null) name.length`, ou `obj.name?.let { ... }`."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Sealed hierarchies plus `when` give exhaustive matching with smart casts and no else branch: the compiler errors when a new subtype appears, turning refactors into checklists.",
+            "fr": "Hiérarchies sealed plus `when` donnent un matching exhaustif avec smart casts et sans branche else : le compilateur signale toute nouvelle sous-classe, transformant les refactorings en checklists."
+          }
+        }
+      ]
+    },
+    {
+      "id": "strings-ranges-equality",
+      "title": {
+        "en": "Strings, ranges & equality",
+        "fr": "Chaînes, ranges & égalité"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "String templates interpolate values: `\"$name\"` or `\"${user.name.uppercase()}\"` for expressions. Raw strings with triple quotes keep newlines and need no escaping; pair them with `trimIndent()` or `trimMargin()`. Templates work inside raw strings too, handy for `${'$'}` when you need a literal dollar.",
+            "fr": "Les templates interpolent des valeurs : `\"$name\"` ou `\"${user.name.uppercase()}\"` pour les expressions. Les raw strings à triples guillemets gardent les sauts de ligne sans échappement ; associez-les à `trimIndent()` ou `trimMargin()`. Les templates marchent aussi dans les raw strings, pratique pour `${'$'}` quand il faut un dollar littéral."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "`==` is structural equality and compiles to a null-safe `equals()` call; `===` is referential identity. This is the reverse of Java's habits: in Kotlin, `==` on strings does what beginners always expected.",
+            "fr": "`==` est l'égalité structurelle et compile vers un appel `equals()` null-safe ; `===` est l'identité référentielle. C'est l'inverse des habitudes Java : en Kotlin, `==` sur des chaînes fait ce que les débutants ont toujours attendu."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "Identity on boxed numbers is a trap: `val a: Int? = 128; val b: Int? = 128; a === b` is false (each is boxed separately), while the same code with 127 is true thanks to the JVM's Integer cache from -128 to 127. Never use `===` on numbers.",
+            "fr": "L'identité sur les nombres boxés est un piège : `val a: Int? = 128; val b: Int? = 128; a === b` vaut false (chacun est boxé séparément), alors que le même code avec 127 vaut true grâce au cache Integer de la JVM de -128 à 127. N'utilisez jamais `===` sur des nombres."
+          }
+        },
+        {
+          "type": "code",
+          "code": "for (i in 1..5) {}          // 1 2 3 4 5\nfor (i in 1..<5) {}         // 1 2 3 4 (until is the older spelling)\nfor (i in 10 downTo 0 step 2) {}\nif (c in 'a'..'z') {}       // ranges implement contains",
+          "caption": {
+            "en": "The ..< operator (Kotlin 1.9+) replaces until for end-exclusive ranges.",
+            "fr": "L'opérateur ..< (Kotlin 1.9+) remplace until pour les ranges exclusives à droite."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Ranges are types (IntRange, CharRange, ClosedRange<T>): store them in vals, pass them around, use them in `when (x) { in 0..9 -> ... }`. Iterating an IntRange in a for loop compiles to a primitive loop with zero allocation.",
+            "fr": "Les ranges sont des types (IntRange, CharRange, ClosedRange<T>) : stockez-les dans des val, passez-les en paramètres, utilisez-les dans `when (x) { in 0..9 -> ... }`. Itérer une IntRange dans un for compile vers une boucle primitive sans allocation."
+          }
+        }
+      ]
+    }
+  ],
+  "flashcards": [
+    {
+      "id": "fc-nothing",
+      "front": {
+        "en": "What is the `Nothing` type and what is it useful for?",
+        "fr": "Qu'est-ce que le type `Nothing` et à quoi sert-il ?"
+      },
+      "back": {
+        "en": "The type with no values, subtype of every type. Return type of functions that never return normally (throw, exitProcess, infinite loop). In an expression like x ?: error(...), the Nothing branch vanishes, so the result keeps the non-null type.",
+        "fr": "Le type sans aucune valeur, sous-type de tous les types. Type de retour des fonctions qui ne rendent jamais la main normalement (throw, exitProcess, boucle infinie). Dans x ?: error(...), la branche Nothing disparaît, le résultat garde le type non-nul."
+      }
+    },
+    {
+      "id": "fc-unit-vs-nothing",
+      "front": {
+        "en": "Unit vs Nothing: what is the difference?",
+        "fr": "Unit vs Nothing : quelle différence ?"
+      },
+      "back": {
+        "en": "Unit has exactly one value and means \"returns nothing useful\" (the function does complete). Nothing has zero values and means \"never completes normally\". Unit is a normal object; Nothing is a bottom type.",
+        "fr": "Unit a exactement une valeur et signifie \"ne renvoie rien d'utile\" (la fonction se termine). Nothing n'a aucune valeur et signifie \"ne se termine jamais normalement\". Unit est un objet normal ; Nothing est un type minimal (bottom type)."
+      }
+    },
+    {
+      "id": "fc-numeric-widening",
+      "front": {
+        "en": "Does Kotlin widen an Int to Long automatically like Java?",
+        "fr": "Kotlin élargit-il automatiquement un Int en Long comme Java ?"
+      },
+      "back": {
+        "en": "No. There is no implicit numeric conversion: passing an Int where a Long is expected requires toLong(). Arithmetic operators are overloaded across numeric types, but assignments and parameters are strict.",
+        "fr": "Non. Aucune conversion numérique implicite : passer un Int là où un Long est attendu exige toLong(). Les opérateurs arithmétiques sont surchargés entre types numériques, mais affectations et paramètres sont stricts."
+      }
+    },
+    {
+      "id": "fc-const-val",
+      "front": {
+        "en": "What are the constraints on `const val`?",
+        "fr": "Quelles sont les contraintes de `const val` ?"
+      },
+      "back": {
+        "en": "Top level, in an object, or in a companion object; type must be a primitive or String; value known at compile time. The constant is inlined at every use site, so changing it requires recompiling consumers.",
+        "fr": "Top-level, dans un object ou un companion object ; type primitif ou String ; valeur connue à la compilation. La constante est inlinée à chaque usage, donc la changer impose de recompiler les consommateurs."
+      }
+    },
+    {
+      "id": "fc-val-getter",
+      "front": {
+        "en": "Is a `val` with a custom getter guaranteed to return the same value on every read?",
+        "fr": "Un `val` avec getter personnalisé renvoie-t-il forcément la même valeur à chaque lecture ?"
+      },
+      "back": {
+        "en": "No. It has no backing field: the getter runs on every access and may return different values. val only promises no setter. This is also why such properties are not smart-castable.",
+        "fr": "Non. Il n'a pas de backing field : le getter s'exécute à chaque accès et peut renvoyer des valeurs différentes. val promet seulement l'absence de setter. C'est aussi pourquoi ces propriétés ne sont pas smart-castables."
+      }
+    },
+    {
+      "id": "fc-lateinit",
+      "front": {
+        "en": "Restrictions of `lateinit`, and how to test initialization?",
+        "fr": "Restrictions de `lateinit`, et comment tester l'initialisation ?"
+      },
+      "back": {
+        "en": "var only, non-nullable, non-primitive type, no custom accessors. Reading before assignment throws UninitializedPropertyAccessException. Test with ::prop.isInitialized. For a compute-once val, prefer by lazy.",
+        "fr": "var uniquement, type non-nul, non primitif, pas d'accesseurs personnalisés. Lecture avant affectation : UninitializedPropertyAccessException. Test avec ::prop.isInitialized. Pour un val calculé une fois, préférez by lazy."
+      }
+    },
+    {
+      "id": "fc-elvis",
+      "front": {
+        "en": "What exactly does `a?.b ?: c` evaluate to?",
+        "fr": "Que vaut exactement `a?.b ?: c` ?"
+      },
+      "back": {
+        "en": "c when a is null, and also when a.b itself is null; otherwise a.b. Elvis triggers on any null left-hand side. The right side can be a value, a throw, or a return (both are Nothing expressions).",
+        "fr": "c quand a est null, et aussi quand a.b est lui-même null ; sinon a.b. Elvis se déclenche sur tout membre gauche null. Le membre droit peut être une valeur, un throw ou un return (expressions Nothing)."
+      }
+    },
+    {
+      "id": "fc-safe-cast",
+      "front": {
+        "en": "What does `as?` return when the cast fails?",
+        "fr": "Que renvoie `as?` quand le cast échoue ?"
+      },
+      "back": {
+        "en": "null, instead of throwing ClassCastException like as. Idiomatic pairing: (x as? Type) ?: fallback. Note: null as? String succeeds and yields null since String? accepts null.",
+        "fr": "null, au lieu de lever ClassCastException comme as. Association idiomatique : (x as? Type) ?: repli. Note : null as? String réussit et donne null puisque String? accepte null."
+      }
+    },
+    {
+      "id": "fc-platform-types",
+      "front": {
+        "en": "What is a platform type (String!)?",
+        "fr": "Qu'est-ce qu'un platform type (String!) ?"
+      },
+      "back": {
+        "en": "The type of a value coming from Java without nullability annotations. The compiler relaxes checks: you may treat it as String or String?. Wrong assumptions surface as runtime NPEs, so validate or annotate at the Java boundary.",
+        "fr": "Le type d'une valeur venant de Java sans annotations de nullabilité. Le compilateur relâche les contrôles : vous pouvez le traiter comme String ou String?. Une mauvaise supposition devient une NPE à l'exécution ; validez ou annotez à la frontière Java."
+      }
+    },
+    {
+      "id": "fc-smartcast-stability",
+      "front": {
+        "en": "Which properties can never be smart-cast, and why?",
+        "fr": "Quelles propriétés ne sont jamais smart-castées, et pourquoi ?"
+      },
+      "back": {
+        "en": "var properties of classes, properties with custom getters, open properties, and properties from another module: the compiler cannot prove the value is unchanged between check and use. Capture into a local val to fix it.",
+        "fr": "Les var de classes, les propriétés à getter personnalisé, les propriétés open, et celles d'un autre module : le compilateur ne peut pas prouver que la valeur est inchangée entre le test et l'usage. Capturez dans un val local pour corriger."
+      }
+    },
+    {
+      "id": "fc-equality",
+      "front": {
+        "en": "== vs === in Kotlin?",
+        "fr": "== vs === en Kotlin ?"
+      },
+      "back": {
+        "en": "== is structural equality, compiled to a null-safe equals() call (null == null is true). === is referential identity. On boxed numbers === is unreliable because of the JVM Integer cache (-128 to 127).",
+        "fr": "== est l'égalité structurelle, compilée en appel equals() null-safe (null == null vaut true). === est l'identité référentielle. Sur les nombres boxés, === n'est pas fiable à cause du cache Integer de la JVM (-128 à 127)."
+      }
+    },
+    {
+      "id": "fc-ranges",
+      "front": {
+        "en": "How do you write an end-exclusive range since Kotlin 1.9?",
+        "fr": "Comment écrire une range exclusive à droite depuis Kotlin 1.9 ?"
+      },
+      "back": {
+        "en": "With the ..< operator: 0..<size, equivalent to 0 until size. Both produce an IntRange excluding the upper bound. Related tools: downTo for descending, step for strides, in for membership tests.",
+        "fr": "Avec l'opérateur ..< : 0..<size, équivalent à 0 until size. Les deux produisent une IntRange excluant la borne haute. Outils liés : downTo pour descendre, step pour le pas, in pour tester l'appartenance."
+      }
+    },
+    {
+      "id": "fc-raw-strings",
+      "front": {
+        "en": "Raw strings: features and the usual companion function?",
+        "fr": "Raw strings : caractéristiques et fonction compagne habituelle ?"
+      },
+      "back": {
+        "en": "Triple-quoted, keep newlines, no escape sequences, templates still work. Pair with trimIndent() (strips the common minimal indent) or trimMargin() (strips up to a | prefix) for readable embedded text.",
+        "fr": "Triples guillemets, sauts de ligne conservés, pas de séquences d'échappement, templates toujours actifs. Associez trimIndent() (retire l'indentation minimale commune) ou trimMargin() (retire jusqu'au préfixe |) pour du texte embarqué lisible."
+      }
+    },
+    {
+      "id": "fc-int-division",
+      "front": {
+        "en": "What does `7 / 2` evaluate to, and how do you get 3.5?",
+        "fr": "Que vaut `7 / 2`, et comment obtenir 3.5 ?"
+      },
+      "back": {
+        "en": "3: division between integers is integer division, like Java. Get 3.5 by making one operand floating: 7 / 2.0, 7.toDouble() / 2. Also remember % keeps the sign of the dividend; use mod() for a non-negative result.",
+        "fr": "3 : la division entre entiers est entière, comme en Java. Pour 3.5, rendez un opérande flottant : 7 / 2.0, 7.toDouble() / 2. Rappel : % garde le signe du dividende ; utilisez mod() pour un résultat positif."
+      }
+    }
+  ],
+  "exercises": [
+    {
+      "id": "ex-int-division",
+      "kind": "predict-output",
+      "difficulty": 1,
+      "prompt": {
+        "en": "What does this program print?",
+        "fr": "Qu'affiche ce programme ?"
+      },
+      "code": "fun main() {\n    println(7 / 2)\n    println(7 / 2.0)\n    println(7 % -2)\n}",
+      "choices": [
+        { "id": "a", "label": { "en": "3.5 / 3.5 / 1", "fr": "3.5 / 3.5 / 1" } },
+        { "id": "b", "label": { "en": "3 / 3.5 / 1", "fr": "3 / 3.5 / 1" } },
+        { "id": "c", "label": { "en": "3 / 3.5 / -1", "fr": "3 / 3.5 / -1" } },
+        { "id": "d", "label": { "en": "3 / 3 / -1", "fr": "3 / 3 / -1" } }
+      ],
+      "answerId": "b",
+      "explanation": {
+        "en": "Integer division truncates: 7 / 2 is 3. Mixing in a Double promotes the operation: 7 / 2.0 is 3.5. The rem operator % keeps the dividend's sign: 7 % -2 is 1 (7 is positive). Use mod() when you need the divisor's sign.",
+        "fr": "La division entière tronque : 7 / 2 vaut 3. Introduire un Double promeut l'opération : 7 / 2.0 vaut 3.5. L'opérateur % garde le signe du dividende : 7 % -2 vaut 1 (7 est positif). Utilisez mod() pour suivre le signe du diviseur."
+      }
+    },
+    {
+      "id": "ex-lateinit-primitive",
+      "kind": "mcq",
+      "difficulty": 1,
+      "prompt": {
+        "en": "Which declaration does NOT compile?",
+        "fr": "Quelle déclaration ne compile PAS ?"
+      },
+      "choices": [
+        {
+          "id": "a",
+          "label": { "en": "lateinit var client: HttpClient", "fr": "lateinit var client: HttpClient" }
+        },
+        {
+          "id": "b",
+          "label": { "en": "lateinit var retries: Int", "fr": "lateinit var retries: Int" }
+        },
+        {
+          "id": "c",
+          "label": { "en": "val token: String by lazy { load() }", "fr": "val token: String by lazy { load() }" }
+        },
+        {
+          "id": "d",
+          "label": { "en": "lateinit var name: String", "fr": "lateinit var name: String" }
+        }
+      ],
+      "answerId": "b",
+      "explanation": {
+        "en": "lateinit is forbidden on primitive types (Int, Boolean, ...): the JVM has no \"uninitialized\" marker for primitives, unlike references where null plays that role internally. lateinit also requires var and a non-nullable type; HttpClient and String qualify.",
+        "fr": "lateinit est interdit sur les types primitifs (Int, Boolean, ...) : la JVM n'a pas de marqueur \"non initialisé\" pour les primitifs, contrairement aux références où null joue ce rôle en interne. lateinit exige aussi var et un type non-nul ; HttpClient et String conviennent."
+      }
+    },
+    {
+      "id": "ex-elvis-chain",
+      "kind": "predict-output",
+      "difficulty": 2,
+      "prompt": {
+        "en": "What does this program print?",
+        "fr": "Qu'affiche ce programme ?"
+      },
+      "code": "data class Server(val host: String?)\ndata class Config(val server: Server?)\n\nfun main() {\n    val a = Config(Server(null))\n    val b: Config? = null\n    println(a.server?.host ?: \"default\")\n    println(b?.server?.host ?: \"default\")\n    println(a.server?.host?.length)\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": { "en": "default / default / null", "fr": "default / default / null" }
+        },
+        {
+          "id": "b",
+          "label": { "en": "null / default / null", "fr": "null / default / null" }
+        },
+        {
+          "id": "c",
+          "label": { "en": "default / default / 0", "fr": "default / default / 0" }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "It throws a NullPointerException",
+            "fr": "Le programme lève une NullPointerException"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "Line 1: server exists but host is null, so the safe-call chain yields null and elvis substitutes \"default\". Line 2: b is null, same result through a different path. Line 3: no elvis, the chain propagates null and println prints it; ?. never throws.",
+        "fr": "Ligne 1 : server existe mais host est null, la chaîne d'appels sûrs donne null et elvis substitue \"default\". Ligne 2 : b est null, même résultat par un autre chemin. Ligne 3 : pas d'elvis, la chaîne propage null et println l'affiche ; ?. ne lève jamais d'exception."
+      }
+    },
+    {
+      "id": "ex-smartcast-var",
+      "kind": "find-bug",
+      "difficulty": 2,
+      "prompt": {
+        "en": "This code does not compile. Why?",
+        "fr": "Ce code ne compile pas. Pourquoi ?"
+      },
+      "code": "class Profile {\n    var nickname: String? = null\n}\n\nfun greet(profile: Profile) {\n    if (profile.nickname != null) {\n        println(\"Hello, \" + profile.nickname.uppercase())\n    }\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "uppercase() does not exist on String",
+            "fr": "uppercase() n'existe pas sur String"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "nickname is a mutable class property, so the null check cannot be smart-cast: it could change between the check and the use",
+            "fr": "nickname est une propriété mutable de classe, le test de null ne peut pas être smart-casté : elle pourrait changer entre le test et l'usage"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "The if condition must use === instead of !=",
+            "fr": "La condition du if doit utiliser === au lieu de !="
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "String concatenation with + is not allowed on nullable receivers",
+            "fr": "La concaténation avec + est interdite sur les récepteurs nullables"
+          }
+        }
+      ],
+      "answerId": "b",
+      "explanation": {
+        "en": "Smart casts need stability and a var property of a class is not stable: another thread (or a setter side effect) could write null between the check and profile.nickname.uppercase(). Fix by capturing: val nick = profile.nickname; if (nick != null) ..., or profile.nickname?.let { ... }.",
+        "fr": "Le smart cast exige la stabilité et une propriété var de classe n'est pas stable : un autre thread (ou un effet de bord de setter) pourrait écrire null entre le test et profile.nickname.uppercase(). Corrigez en capturant : val nick = profile.nickname; if (nick != null) ..., ou profile.nickname?.let { ... }."
+      }
+    },
+    {
+      "id": "ex-boxed-identity",
+      "kind": "predict-output",
+      "difficulty": 3,
+      "prompt": {
+        "en": "What does this program print on the JVM?",
+        "fr": "Qu'affiche ce programme sur la JVM ?"
+      },
+      "code": "fun main() {\n    val a: Int? = 127\n    val b: Int? = 127\n    val c: Int? = 128\n    val d: Int? = 128\n    println(a === b)\n    println(c === d)\n    println(c == d)\n}",
+      "choices": [
+        { "id": "a", "label": { "en": "true / true / true", "fr": "true / true / true" } },
+        { "id": "b", "label": { "en": "false / false / true", "fr": "false / false / true" } },
+        { "id": "c", "label": { "en": "true / false / true", "fr": "true / false / true" } },
+        { "id": "d", "label": { "en": "true / false / false", "fr": "true / false / false" } }
+      ],
+      "answerId": "c",
+      "explanation": {
+        "en": "Int? forces boxing. The JVM caches Integer instances from -128 to 127: a and b share the cached object (identity true), c and d are two distinct boxes (identity false). Structural equality == compares values and stays true. Moral: never use === on numbers.",
+        "fr": "Int? force le boxing. La JVM met en cache les Integer de -128 à 127 : a et b partagent l'objet du cache (identité true), c et d sont deux boîtes distinctes (identité false). L'égalité structurelle == compare les valeurs et reste true. Morale : jamais === sur des nombres."
+      }
+    },
+    {
+      "id": "ex-nothing-type",
+      "kind": "mcq",
+      "difficulty": 2,
+      "prompt": {
+        "en": "In `val port = env[\"PORT\"] ?: error(\"missing\")`, why is port typed String and not String??",
+        "fr": "Dans `val port = env[\"PORT\"] ?: error(\"missing\")`, pourquoi port est-il typé String et non String? ?"
+      },
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "error() returns Nothing, a subtype of every type, so the elvis result type is just String",
+            "fr": "error() renvoie Nothing, sous-type de tous les types, donc le type résultat de l'elvis est simplement String"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "The compiler special-cases the error() function name",
+            "fr": "Le compilateur traite spécialement la fonction nommée error()"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "Elvis always removes nullability from its result",
+            "fr": "Elvis retire toujours la nullabilité de son résultat"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "env[\"PORT\"] cannot return null on a Map",
+            "fr": "env[\"PORT\"] ne peut pas renvoyer null sur une Map"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "error() is declared fun error(message: Any): Nothing. The common supertype of String and Nothing is String, so the branch that throws contributes nothing to the type. Any Nothing expression (throw, return, TODO()) works the same way in an elvis or when branch.",
+        "fr": "error() est déclarée fun error(message: Any): Nothing. Le supertype commun de String et Nothing est String, la branche qui lève ne contribue donc pas au type. Toute expression Nothing (throw, return, TODO()) fonctionne pareil dans un elvis ou une branche de when."
+      }
+    },
+    {
+      "id": "ex-range-output",
+      "kind": "predict-output",
+      "difficulty": 1,
+      "prompt": {
+        "en": "What does this program print?",
+        "fr": "Qu'affiche ce programme ?"
+      },
+      "code": "fun main() {\n    for (i in 1..<4) print(i)\n    print(\"|\")\n    for (i in 4 downTo 1 step 2) print(i)\n    print(\"|\")\n    println(5 in 1..4)\n}",
+      "choices": [
+        { "id": "a", "label": { "en": "123|42|false", "fr": "123|42|false" } },
+        { "id": "b", "label": { "en": "1234|42|false", "fr": "1234|42|false" } },
+        { "id": "c", "label": { "en": "123|421|false", "fr": "123|421|false" } },
+        { "id": "d", "label": { "en": "123|42|true", "fr": "123|42|true" } }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "1..<4 excludes the upper bound: 1 2 3. downTo with step 2 from 4 gives 4 then 2 (0 would be below the bound). 5 is outside 1..4, in returns false.",
+        "fr": "1..<4 exclut la borne haute : 1 2 3. downTo avec step 2 depuis 4 donne 4 puis 2 (0 serait sous la borne). 5 est hors de 1..4, in renvoie false."
+      }
+    },
+    {
+      "id": "ex-float-accumulation",
+      "kind": "find-bug",
+      "difficulty": 3,
+      "prompt": {
+        "en": "This test fails intermittently in CI. What is wrong?",
+        "fr": "Ce test échoue de façon intermittente en CI. Quel est le problème ?"
+      },
+      "code": "fun totalWeight(items: List<Item>): Double =\n    items.sumOf { it.weight }   // weights like 0.1, 0.2\n\n@Test\nfun `total of ten 0_1 weights is 1`() {\n    val items = List(10) { Item(weight = 0.1) }\n    assertTrue(totalWeight(items) == 1.0)\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "sumOf does not work on Double, it only accepts Int",
+            "fr": "sumOf ne fonctionne pas sur Double, il n'accepte que Int"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "List(10) creates 9 elements, so the sum is 0.9",
+            "fr": "List(10) crée 9 éléments, la somme vaut 0.9"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "Accumulating 0.1 in binary floating point gives 0.9999999999999999, and == on Doubles compares exactly: the assertion is wrong by construction",
+            "fr": "Accumuler 0.1 en flottant binaire donne 0.9999999999999999, et == sur des Double compare exactement : l'assertion est fausse par construction"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "assertTrue cannot receive a Boolean expression",
+            "fr": "assertTrue ne peut pas recevoir une expression Boolean"
+          }
+        }
+      ],
+      "answerId": "c",
+      "explanation": {
+        "en": "0.1 has no exact binary representation; ten additions accumulate the error and the result is not exactly 1.0. Nothing intermittent about it, it fails deterministically. Compare with a tolerance (abs(a - b) < epsilon, assertEquals(1.0, x, 1e-9)) or compute money-like values in BigDecimal or integer cents.",
+        "fr": "0.1 n'a pas de représentation binaire exacte ; dix additions accumulent l'erreur et le résultat n'est pas exactement 1.0. Rien d'intermittent, l'échec est déterministe. Comparez avec une tolérance (abs(a - b) < epsilon, assertEquals(1.0, x, 1e-9)) ou calculez les montants en BigDecimal ou en centimes entiers."
+      }
+    }
+  ]
+}
