@@ -1,0 +1,561 @@
+{
+  "id": "collections",
+  "title": { "en": "Collections & sequences", "fr": "Collections & séquences" },
+  "tagline": {
+    "en": "Stdlib API, immutability, laziness",
+    "fr": "API stdlib, immutabilité, paresse"
+  },
+  "icon": "📦",
+  "lessons": [
+    {
+      "id": "hierarchy-immutability",
+      "title": {
+        "en": "Hierarchy & the immutability illusion",
+        "fr": "Hiérarchie & l'illusion d'immutabilité"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "Kotlin splits interfaces by capability: `List`, `Set`, `Map` are READ-ONLY views; `MutableList`, `MutableSet`, `MutableMap` extend them with mutation. Read-only is a compile-time promise about YOUR reference, not about the object: another reference (or the producer) may still mutate the same instance underneath you.",
+            "fr": "Kotlin sépare les interfaces par capacité : `List`, `Set`, `Map` sont des vues EN LECTURE SEULE ; `MutableList`, `MutableSet`, `MutableMap` les étendent avec la mutation. Lecture seule est une promesse de compilation sur VOTRE référence, pas sur l'objet : une autre référence (ou le producteur) peut toujours modifier la même instance sous vos pieds."
+          }
+        },
+        {
+          "type": "code",
+          "code": "val backing = mutableListOf(1, 2)\nval view: List<Int> = backing   // read-only reference\nbacking.add(3)\nprintln(view)                   // [1, 2, 3]: the \"immutable\" view moved",
+          "caption": {
+            "en": "A read-only type is a window, not a snapshot.",
+            "fr": "Un type en lecture seule est une fenêtre, pas un instantané."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "Defensive copies matter at API boundaries: return `list.toList()` from getters if callers must not observe later internal mutations. For true immutability guarantees, use kotlinx.collections.immutable (PersistentList) rather than trusting the read-only interfaces.",
+            "fr": "Les copies défensives comptent aux frontières d'API : renvoyez `list.toList()` depuis les getters si les appelants ne doivent pas observer les mutations internes ultérieures. Pour de vraies garanties d'immutabilité, utilisez kotlinx.collections.immutable (PersistentList) plutôt que de faire confiance aux interfaces read-only."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Builders give you local mutation with a read-only result: `buildList { add(1); addAll(rest) }` returns a List. Factory functions: listOf, setOf, mapOf (read-only), mutableListOf and friends, emptyList (shared singleton), List(n) { init } for computed content.",
+            "fr": "Les builders offrent la mutation locale avec un résultat en lecture seule : `buildList { add(1); addAll(rest) }` renvoie une List. Fonctions factory : listOf, setOf, mapOf (lecture seule), mutableListOf et consorts, emptyList (singleton partagé), List(n) { init } pour du contenu calculé."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Casting a List back to MutableList compiles but is a landmine: listOf() instances throw UnsupportedOperationException on mutation, and even when it works you are breaking the producer's invariants. If you need to mutate, copy: toMutableList().",
+            "fr": "Caster une List vers MutableList compile mais c'est une mine : les instances de listOf() lèvent UnsupportedOperationException à la mutation, et même quand ça marche vous cassez les invariants du producteur. Pour muter, copiez : toMutableList()."
+          }
+        }
+      ]
+    },
+    {
+      "id": "transformations",
+      "title": {
+        "en": "Transformation operators",
+        "fr": "Opérateurs de transformation"
+      },
+      "minutes": 5,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "The core vocabulary: `map` (1 to 1), `filter`, `flatMap` (1 to many, flattened), `mapNotNull` (transform and drop nulls in one pass), `partition` (split by predicate into a Pair), `zip` (pairwise combine, stops at the shorter), `associateBy`/`associateWith` (build maps), `groupBy` (build multimaps).",
+            "fr": "Le vocabulaire de base : `map` (1 vers 1), `filter`, `flatMap` (1 vers plusieurs, aplati), `mapNotNull` (transformer et éliminer les nulls en une passe), `partition` (scinder par prédicat en Pair), `zip` (combiner par paires, s'arrête au plus court), `associateBy`/`associateWith` (construire des maps), `groupBy` (construire des multimaps)."
+          }
+        },
+        {
+          "type": "code",
+          "code": "val byId: Map<Long, User> = users.associateBy { it.id }\nval byCity: Map<String, List<User>> = users.groupBy { it.city }\nval (adults, minors) = users.partition { it.age >= 18 }\nval counts = users.groupingBy { it.city }.eachCount()"
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "associateBy silently keeps the LAST element for duplicate keys; if losing data matters, use groupBy and inspect, or check distinctness first. Same silent last-wins in toMap() on a list of pairs.",
+            "fr": "associateBy garde silencieusement le DERNIER élément en cas de clés dupliquées ; si perdre des données compte, utilisez groupBy et inspectez, ou vérifiez l'unicité d'abord. Même dernier-gagne silencieux dans toMap() sur une liste de paires."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Aggregation: `fold(initial) { acc, x -> ... }` threads an accumulator and handles empty collections; `reduce` uses the first element as seed and THROWS on empty. sumOf, maxByOrNull, minOfOrNull cover the common cases; the OrNull variants replace exceptions with nulls.",
+            "fr": "Agrégation : `fold(initial) { acc, x -> ... }` enchaîne un accumulateur et gère les collections vides ; `reduce` prend le premier élément comme graine et LÈVE sur vide. sumOf, maxByOrNull, minOfOrNull couvrent les cas courants ; les variantes OrNull remplacent les exceptions par des nulls."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Every operator family has an OrNull twin (first/firstOrNull, single/singleOrNull, max.../...OrNull). Choosing the OrNull form plus elvis reads better than try/catch and states the empty case explicitly in the code.",
+            "fr": "Chaque famille d'opérateurs a un jumeau OrNull (first/firstOrNull, single/singleOrNull, max.../...OrNull). Choisir la forme OrNull plus elvis se lit mieux que try/catch et explicite le cas vide dans le code."
+          }
+        }
+      ]
+    },
+    {
+      "id": "sequences",
+      "title": {
+        "en": "Sequences: lazy pipelines",
+        "fr": "Séquences : pipelines paresseux"
+      },
+      "minutes": 5,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "Collection operators are EAGER: each step materializes a full intermediate list. Sequences are LAZY: `asSequence()` builds a pipeline where nothing runs until a terminal operator (toList, first, sum, count), and elements flow ONE BY ONE through the whole chain rather than step by step.",
+            "fr": "Les opérateurs de collections sont IMPATIENTS : chaque étape matérialise une liste intermédiaire complète. Les séquences sont PARESSEUSES : `asSequence()` construit un pipeline où rien ne s'exécute avant un opérateur terminal (toList, first, sum, count), et les éléments traversent la chaîne UN PAR UN plutôt qu'étape par étape."
+          }
+        },
+        {
+          "type": "code",
+          "code": "val hit = files.asSequence()\n    .map { parse(it) }        // runs at most 3 times here\n    .filter { it.isValid }\n    .first { it.size > 1_000 } // stops the whole pipeline on match",
+          "caption": {
+            "en": "Element-wise flow plus a short-circuiting terminal: minimal work done.",
+            "fr": "Flux élément par élément plus un terminal court-circuitant : travail minimal."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Use sequences when: chains have 3+ steps on large inputs, when a short-circuiting terminal (first, any, take) may stop early, or with infinite generators (`generateSequence`, `sequence { yield(...) }`). Stick to plain collections for small lists and 1-2 steps: sequence overhead beats the savings there.",
+            "fr": "Utilisez les séquences quand : les chaînes ont 3+ étapes sur de grandes entrées, quand un terminal court-circuitant (first, any, take) peut s'arrêter tôt, ou avec des générateurs infinis (`generateSequence`, `sequence { yield(...) }`). Restez sur les collections pour les petites listes et 1-2 étapes : le surcoût des séquences y dépasse le gain."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "Stateful operators break laziness locally: sorted, distinct, reversed and groupBy must buffer everything before emitting. A sequence chain ending in sorted().first() still consumes the whole input; putting take(n) BEFORE the stateful step is where the wins hide.",
+            "fr": "Les opérateurs à état cassent localement la paresse : sorted, distinct, reversed et groupBy doivent tout mettre en mémoire avant d'émettre. Une chaîne de séquence finissant en sorted().first() consomme quand même toute l'entrée ; placer take(n) AVANT l'étape à état, c'est là que se cachent les gains."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "A Sequence may be single-shot (built over an Iterator or a BufferedReader.lineSequence): iterating twice throws IllegalStateException. Call constrainOnce() to make that contract explicit, or toList() if you genuinely need multiple passes.",
+            "fr": "Une Sequence peut être à passage unique (construite sur un Iterator ou lineSequence d'un BufferedReader) : itérer deux fois lève IllegalStateException. Appelez constrainOnce() pour expliciter ce contrat, ou toList() s'il vous faut vraiment plusieurs passes."
+          }
+        }
+      ]
+    },
+    {
+      "id": "maps-grouping",
+      "title": {
+        "en": "Maps in practice",
+        "fr": "Les maps en pratique"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "`map[key]` returns V?, forcing the absent case into your code. The toolkit: `getOrElse(key) { default }` (computes, does not store), `getOrPut(key) { default }` (computes AND stores, the memoization workhorse on MutableMap), `getValue(key)` (throws if absent, pairs with withDefault).",
+            "fr": "`map[key]` renvoie V?, forçant le cas absent dans votre code. La panoplie : `getOrElse(key) { default }` (calcule sans stocker), `getOrPut(key) { default }` (calcule ET stocke, le cheval de trait de la mémoïsation sur MutableMap), `getValue(key)` (lève si absent, s'associe à withDefault)."
+          }
+        },
+        {
+          "type": "code",
+          "code": "val cache = mutableMapOf<String, Regex>()\nfun regexFor(pattern: String): Regex =\n    cache.getOrPut(pattern) { Regex(pattern) }\n\nval index = mutableMapOf<Char, MutableList<String>>()\nwords.forEach { index.getOrPut(it.first()) { mutableListOf() }.add(it) }"
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Iteration destructures entries: `for ((key, value) in map)`. Transformations: mapValues/mapKeys rebuild maps (mapKeys can collide keys, last wins); filterKeys/filterValues; entries.sortedBy for ordered processing. `mapOf` preserves insertion order (LinkedHashMap) which most code silently relies on.",
+            "fr": "L'itération déstructure les entrées : `for ((key, value) in map)`. Transformations : mapValues/mapKeys reconstruisent des maps (mapKeys peut faire collisionner des clés, dernier gagne) ; filterKeys/filterValues ; entries.sortedBy pour un traitement ordonné. `mapOf` préserve l'ordre d'insertion (LinkedHashMap), sur quoi la plupart du code s'appuie sans le dire."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "Using a mutable object as a map key or set element then mutating it corrupts the structure: hashCode changes, the entry becomes unreachable but still counted. Keys must be stable; data classes of vals are the safe default.",
+            "fr": "Utiliser un objet mutable comme clé de map ou élément de set puis le modifier corrompt la structure : le hashCode change, l'entrée devient inatteignable mais toujours comptée. Les clés doivent être stables ; les data classes de vals sont le choix sûr."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "groupingBy beats groupBy when you only need aggregates: users.groupingBy { it.city }.eachCount() (or fold/aggregate) computes without materializing the intermediate lists that groupBy builds.",
+            "fr": "groupingBy bat groupBy quand seuls les agrégats comptent : users.groupingBy { it.city }.eachCount() (ou fold/aggregate) calcule sans matérialiser les listes intermédiaires que groupBy construit."
+          }
+        }
+      ]
+    }
+  ],
+  "flashcards": [
+    {
+      "id": "fc-readonly-vs-immutable",
+      "front": {
+        "en": "Is a Kotlin List immutable?",
+        "fr": "Une List Kotlin est-elle immuable ?"
+      },
+      "back": {
+        "en": "No: List is a read-only INTERFACE on your reference. The underlying object may be a MutableList mutated elsewhere. For guarantees, make defensive copies (toList()) or use kotlinx.collections.immutable's PersistentList.",
+        "fr": "Non : List est une INTERFACE en lecture seule sur votre référence. L'objet sous-jacent peut être une MutableList modifiée ailleurs. Pour des garanties, copiez défensivement (toList()) ou utilisez PersistentList de kotlinx.collections.immutable."
+      }
+    },
+    {
+      "id": "fc-fold-reduce",
+      "front": {
+        "en": "fold vs reduce: which one survives an empty collection?",
+        "fr": "fold vs reduce : lequel survit à une collection vide ?"
+      },
+      "back": {
+        "en": "fold: it starts from your initial value and returns it unchanged on empty input. reduce seeds with the first element and throws UnsupportedOperationException on empty. reduceOrNull is the safe middle ground.",
+        "fr": "fold : il part de votre valeur initiale et la renvoie telle quelle sur une entrée vide. reduce prend le premier élément comme graine et lève UnsupportedOperationException sur vide. reduceOrNull est l'entre-deux sûr."
+      }
+    },
+    {
+      "id": "fc-associateby-dup",
+      "front": {
+        "en": "What does associateBy do with duplicate keys?",
+        "fr": "Que fait associateBy avec des clés dupliquées ?"
+      },
+      "back": {
+        "en": "Silently keeps the last element per key; earlier ones are dropped without warning. Same for toMap() on pairs. When duplicates are meaningful, use groupBy (all values kept as lists) and decide explicitly.",
+        "fr": "Garde silencieusement le dernier élément par clé ; les précédents disparaissent sans avertissement. Idem pour toMap() sur des paires. Quand les doublons comptent, utilisez groupBy (toutes les valeurs en listes) et tranchez explicitement."
+      }
+    },
+    {
+      "id": "fc-flatmap",
+      "front": {
+        "en": "map vs flatMap: when do you need the latter?",
+        "fr": "map vs flatMap : quand faut-il le second ?"
+      },
+      "back": {
+        "en": "When the transform returns a collection per element and you want one flat result: orders.flatMap { it.items } gives List<Item>, where map would give List<List<Item>>. flatten() is flatMap { it } for already-nested collections.",
+        "fr": "Quand la transformation renvoie une collection par élément et qu'on veut un résultat plat : orders.flatMap { it.items } donne List<Item>, là où map donnerait List<List<Item>>. flatten() équivaut à flatMap { it } pour des collections déjà imbriquées."
+      }
+    },
+    {
+      "id": "fc-sequence-when",
+      "front": {
+        "en": "When do sequences actually beat plain collection chains?",
+        "fr": "Quand les séquences battent-elles vraiment les chaînes de collections ?"
+      },
+      "back": {
+        "en": "Large inputs with several chained steps (no intermediate lists), short-circuiting terminals (first, any, take) that can stop early, and infinite generators. For small lists with one or two steps, eager collections are simpler and often faster.",
+        "fr": "Grandes entrées avec plusieurs étapes chaînées (pas de listes intermédiaires), terminaux court-circuitants (first, any, take) pouvant s'arrêter tôt, et générateurs infinis. Pour de petites listes à une ou deux étapes, les collections impatientes sont plus simples et souvent plus rapides."
+      }
+    },
+    {
+      "id": "fc-sequence-order",
+      "front": {
+        "en": "In what order does a sequence pipeline process elements?",
+        "fr": "Dans quel ordre un pipeline de séquence traite-t-il les éléments ?"
+      },
+      "back": {
+        "en": "Element-wise (vertically): each element traverses the whole chain before the next starts, driven by the terminal operator. Collections process step-wise (horizontally): each operator finishes the entire list before the next begins.",
+        "fr": "Élément par élément (verticalement) : chaque élément traverse toute la chaîne avant que le suivant ne commence, piloté par l'opérateur terminal. Les collections traitent étape par étape (horizontalement) : chaque opérateur finit toute la liste avant le suivant."
+      }
+    },
+    {
+      "id": "fc-stateful-ops",
+      "front": {
+        "en": "Which sequence operators secretly buffer the whole input?",
+        "fr": "Quels opérateurs de séquence mettent secrètement toute l'entrée en mémoire ?"
+      },
+      "back": {
+        "en": "The stateful ones: sorted, distinct (keeps a seen-set), reversed, groupBy, shuffled. They must see everything before emitting, so laziness pauses there. Put take/filter before them when possible.",
+        "fr": "Ceux à état : sorted, distinct (garde un ensemble de vus), reversed, groupBy, shuffled. Ils doivent tout voir avant d'émettre, la paresse s'y suspend. Placez take/filter avant eux quand c'est possible."
+      }
+    },
+    {
+      "id": "fc-getorput",
+      "front": {
+        "en": "getOrElse vs getOrPut on a map?",
+        "fr": "getOrElse vs getOrPut sur une map ?"
+      },
+      "back": {
+        "en": "getOrElse computes the default and returns it WITHOUT storing (works on read-only Map). getOrPut computes, STORES, then returns (MutableMap only): the standard memoization and multimap-building primitive.",
+        "fr": "getOrElse calcule le défaut et le renvoie SANS stocker (fonctionne sur Map en lecture seule). getOrPut calcule, STOCKE, puis renvoie (MutableMap uniquement) : la primitive standard de mémoïsation et de construction de multimaps."
+      }
+    },
+    {
+      "id": "fc-chunked-windowed",
+      "front": {
+        "en": "chunked(3) vs windowed(3) on [1,2,3,4,5]?",
+        "fr": "chunked(3) vs windowed(3) sur [1,2,3,4,5] ?"
+      },
+      "back": {
+        "en": "chunked(3): non-overlapping blocks [[1,2,3],[4,5]] (last may be short). windowed(3): sliding windows [[1,2,3],[2,3,4],[3,4,5]] (partial windows dropped unless partialWindows = true). windowed also takes a step parameter.",
+        "fr": "chunked(3) : blocs sans chevauchement [[1,2,3],[4,5]] (le dernier peut être court). windowed(3) : fenêtres glissantes [[1,2,3],[2,3,4],[3,4,5]] (fenêtres partielles ignorées sauf partialWindows = true). windowed accepte aussi un paramètre step."
+      }
+    },
+    {
+      "id": "fc-mutable-key",
+      "front": {
+        "en": "What happens if you mutate an object used as a HashMap key?",
+        "fr": "Que se passe-t-il si on modifie un objet utilisé comme clé de HashMap ?"
+      },
+      "back": {
+        "en": "Its hashCode changes, so the entry sits in the wrong bucket: lookups miss it, but it still occupies size and iteration. Effectively corrupted state. Keys must be stable: prefer data classes with only vals.",
+        "fr": "Son hashCode change, l'entrée se retrouve dans le mauvais bucket : les recherches la ratent, mais elle compte toujours dans size et l'itération. État de fait corrompu. Les clés doivent être stables : préférez des data classes de vals uniquement."
+      }
+    },
+    {
+      "id": "fc-single-shot",
+      "front": {
+        "en": "Can every Sequence be iterated multiple times?",
+        "fr": "Toute Sequence peut-elle être itérée plusieurs fois ?"
+      },
+      "back": {
+        "en": "No. Sequences over iterators or IO (lineSequence) are single-shot: a second iteration throws IllegalStateException. constrainOnce() documents the contract; toList() materializes when multiple passes are genuinely needed.",
+        "fr": "Non. Les séquences sur itérateurs ou IO (lineSequence) sont à passage unique : une seconde itération lève IllegalStateException. constrainOnce() documente le contrat ; toList() matérialise quand plusieurs passes sont vraiment nécessaires."
+      }
+    },
+    {
+      "id": "fc-groupingby",
+      "front": {
+        "en": "Why prefer groupingBy over groupBy for counting?",
+        "fr": "Pourquoi préférer groupingBy à groupBy pour compter ?"
+      },
+      "back": {
+        "en": "groupBy materializes every group as a List before you aggregate; groupingBy returns a lazy Grouping that eachCount/fold/aggregate consume without building those lists. Same result, much less garbage on large inputs.",
+        "fr": "groupBy matérialise chaque groupe en List avant l'agrégation ; groupingBy renvoie un Grouping paresseux que eachCount/fold/aggregate consomment sans construire ces listes. Même résultat, bien moins de déchets mémoire sur de grandes entrées."
+      }
+    }
+  ],
+  "exercises": [
+    {
+      "id": "ex-lazy-order",
+      "kind": "predict-output",
+      "difficulty": 2,
+      "prompt": {
+        "en": "What does this program print?",
+        "fr": "Qu'affiche ce programme ?"
+      },
+      "code": "fun main() {\n    val result = listOf(1, 2, 3)\n        .asSequence()\n        .map { print(\"m$it \"); it * 10 }\n        .filter { print(\"f$it \"); it >= 20 }\n        .first()\n    println(\"-> $result\")\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "m1 m2 m3 f10 f20 f30 -> 20",
+            "fr": "m1 m2 m3 f10 f20 f30 -> 20"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "m1 f10 m2 f20 -> 20",
+            "fr": "m1 f10 m2 f20 -> 20"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "m1 f10 m2 f20 m3 f30 -> 20",
+            "fr": "m1 f10 m2 f20 m3 f30 -> 20"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "Nothing: sequences never execute lambdas",
+            "fr": "Rien : les séquences n'exécutent jamais les lambdas"
+          }
+        }
+      ],
+      "answerId": "b",
+      "explanation": {
+        "en": "Sequences process element-wise and first() short-circuits. Element 1: m1, f10 (10 < 20, rejected). Element 2: m2, f20 (accepted), first() returns 20 and the pipeline stops: element 3 is never touched. The eager version (no asSequence) would print all m's then all f's.",
+        "fr": "Les séquences traitent élément par élément et first() court-circuite. Élément 1 : m1, f10 (10 < 20, rejeté). Élément 2 : m2, f20 (accepté), first() renvoie 20 et le pipeline s'arrête : l'élément 3 n'est jamais touché. La version impatiente (sans asSequence) afficherait tous les m puis tous les f."
+      }
+    },
+    {
+      "id": "ex-reduce-empty",
+      "kind": "mcq",
+      "difficulty": 1,
+      "prompt": {
+        "en": "`emptyList<Int>().reduce { a, b -> a + b }` at runtime:",
+        "fr": "`emptyList<Int>().reduce { a, b -> a + b }` à l'exécution :"
+      },
+      "choices": [
+        { "id": "a", "label": { "en": "Returns 0", "fr": "Renvoie 0" } },
+        { "id": "b", "label": { "en": "Returns null", "fr": "Renvoie null" } },
+        {
+          "id": "c",
+          "label": {
+            "en": "Throws UnsupportedOperationException",
+            "fr": "Lève UnsupportedOperationException"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "Does not compile",
+            "fr": "Ne compile pas"
+          }
+        }
+      ],
+      "answerId": "c",
+      "explanation": {
+        "en": "reduce seeds the accumulator with the first element; with no elements it throws. Use fold(0) { a, b -> a + b } (returns the initial value on empty), reduceOrNull (returns null), or sum() for this specific case.",
+        "fr": "reduce initialise l'accumulateur avec le premier élément ; sans élément, il lève. Utilisez fold(0) { a, b -> a + b } (renvoie la valeur initiale sur vide), reduceOrNull (renvoie null), ou sum() pour ce cas précis."
+      }
+    },
+    {
+      "id": "ex-readonly-cast",
+      "kind": "find-bug",
+      "difficulty": 2,
+      "prompt": {
+        "en": "This helper crashes in production with UnsupportedOperationException. Why?",
+        "fr": "Ce helper plante en production avec UnsupportedOperationException. Pourquoi ?"
+      },
+      "code": "fun appendFooter(lines: List<String>): List<String> {\n    val mutable = lines as MutableList<String>\n    mutable.add(\"-- sent from Kortex\")\n    return mutable\n}\n\n// caller\nappendFooter(listOf(\"Hello\", \"World\"))",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "The cast to MutableList is a lie: listOf returns a structure that rejects mutation, and even castable inputs would be mutated behind the caller's back. Copy instead: lines + footer or lines.toMutableList()",
+            "fr": "Le cast vers MutableList est un mensonge : listOf renvoie une structure qui refuse la mutation, et même un argument castable serait modifié dans le dos de l'appelant. Copiez : lines + footer ou lines.toMutableList()"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "add() cannot take a String containing spaces",
+            "fr": "add() n'accepte pas une String contenant des espaces"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "The function must be declared with vararg lines",
+            "fr": "La fonction doit être déclarée avec vararg lines"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "as should be as? to make the cast succeed",
+            "fr": "as devrait être as? pour que le cast réussisse"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "The read-only type is a contract; downcasting to MutableList assumes an implementation detail. listOf(a, b) is backed by a fixed-size structure whose add throws. And when the cast happens to work, you silently mutate the caller's data. Honest version: return lines + \"-- sent from Kortex\" (new list, no cast, no surprise). as? would just crash differently (NPE on the elvis-less null).",
+        "fr": "Le type en lecture seule est un contrat ; le downcast vers MutableList présume d'un détail d'implémentation. listOf(a, b) s'appuie sur une structure de taille fixe dont add lève. Et quand le cast marche, vous modifiez silencieusement les données de l'appelant. Version honnête : return lines + \"-- sent from Kortex\" (nouvelle liste, pas de cast, pas de surprise). as? planterait juste autrement."
+      }
+    },
+    {
+      "id": "ex-associateby-lastwins",
+      "kind": "predict-output",
+      "difficulty": 2,
+      "prompt": {
+        "en": "What does this program print?",
+        "fr": "Qu'affiche ce programme ?"
+      },
+      "code": "data class Emp(val name: String, val dept: String)\n\nfun main() {\n    val emps = listOf(\n        Emp(\"Ana\", \"IT\"), Emp(\"Bob\", \"HR\"), Emp(\"Chloe\", \"IT\")\n    )\n    val byDept = emps.associateBy { it.dept }\n    println(byDept[\"IT\"]?.name)\n    println(byDept.size)\n}",
+      "choices": [
+        { "id": "a", "label": { "en": "Ana / 3", "fr": "Ana / 3" } },
+        { "id": "b", "label": { "en": "Chloe / 2", "fr": "Chloe / 2" } },
+        { "id": "c", "label": { "en": "Ana / 2", "fr": "Ana / 2" } },
+        {
+          "id": "d",
+          "label": {
+            "en": "It throws: duplicate key IT",
+            "fr": "Ça lève : clé IT dupliquée"
+          }
+        }
+      ],
+      "answerId": "b",
+      "explanation": {
+        "en": "associateBy never throws on duplicates: each new element overwrites the previous entry for its key. Chloe (last IT) replaces Ana, leaving 2 entries (IT, HR). If every employee must be kept, groupBy is the right tool: Map<String, List<Emp>>.",
+        "fr": "associateBy ne lève jamais sur doublons : chaque nouvel élément écrase l'entrée précédente pour sa clé. Chloe (dernière IT) remplace Ana, laissant 2 entrées (IT, HR). S'il faut garder chaque employé, groupBy est le bon outil : Map<String, List<Emp>>."
+      }
+    },
+    {
+      "id": "ex-sorted-sequence",
+      "kind": "mcq",
+      "difficulty": 3,
+      "prompt": {
+        "en": "Which pipeline reads the FEWEST log lines to get 10 error lines from a huge file?",
+        "fr": "Quel pipeline lit le MOINS de lignes pour obtenir 10 lignes d'erreur d'un fichier énorme ?"
+      },
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "file.readLines().filter { \"ERROR\" in it }.take(10)",
+            "fr": "file.readLines().filter { \"ERROR\" in it }.take(10)"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "file.useLines { it.filter { l -> \"ERROR\" in l }.take(10).toList() }",
+            "fr": "file.useLines { it.filter { l -> \"ERROR\" in l }.take(10).toList() }"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "file.useLines { it.sortedBy { l -> l.length }.filter { l -> \"ERROR\" in l }.take(10).toList() }",
+            "fr": "file.useLines { it.sortedBy { l -> l.length }.filter { l -> \"ERROR\" in l }.take(10).toList() }"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "file.readLines().asSequence().filter { \"ERROR\" in it }.toList().take(10)",
+            "fr": "file.readLines().asSequence().filter { \"ERROR\" in it }.toList().take(10)"
+          }
+        }
+      ],
+      "answerId": "b",
+      "explanation": {
+        "en": "b streams lazily (useLines gives a line Sequence) and take(10) stops reading after the 10th match. a and d load the entire file into memory first (readLines). c streams but sortedBy is stateful: it must buffer every line before emitting anything, defeating the laziness entirely.",
+        "fr": "b streame paresseusement (useLines donne une Sequence de lignes) et take(10) arrête la lecture après la 10e correspondance. a et d chargent tout le fichier en mémoire (readLines). c streame mais sortedBy est à état : il doit tout mettre en mémoire avant d'émettre, annulant complètement la paresse."
+      }
+    },
+    {
+      "id": "ex-windowed",
+      "kind": "predict-output",
+      "difficulty": 1,
+      "prompt": {
+        "en": "What does this program print?",
+        "fr": "Qu'affiche ce programme ?"
+      },
+      "code": "fun main() {\n    val xs = listOf(1, 2, 3, 4, 5)\n    println(xs.chunked(2))\n    println(xs.windowed(2, step = 2))\n    println(xs.zipWithNext { a, b -> b - a })\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "[[1, 2], [3, 4], [5]] / [[1, 2], [3, 4]] / [1, 1, 1, 1]",
+            "fr": "[[1, 2], [3, 4], [5]] / [[1, 2], [3, 4]] / [1, 1, 1, 1]"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "[[1, 2], [3, 4], [5]] / [[1, 2], [3, 4], [5]] / [1, 1, 1, 1]",
+            "fr": "[[1, 2], [3, 4], [5]] / [[1, 2], [3, 4], [5]] / [1, 1, 1, 1]"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "[[1, 2], [3, 4]] / [[1, 2], [2, 3], [3, 4], [4, 5]] / [1, 1, 1, 1]",
+            "fr": "[[1, 2], [3, 4]] / [[1, 2], [2, 3], [3, 4], [4, 5]] / [1, 1, 1, 1]"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "[[1, 2], [3, 4], [5]] / [[1, 2], [2, 3], [3, 4], [4, 5]] / [1, 1, 1, 1, 1]",
+            "fr": "[[1, 2], [3, 4], [5]] / [[1, 2], [2, 3], [3, 4], [4, 5]] / [1, 1, 1, 1, 1]"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "chunked keeps the short tail: [[1,2],[3,4],[5]]. windowed(2, step = 2) drops partial windows by default: [[1,2],[3,4]] and no [5]. zipWithNext pairs consecutive elements: 4 pairs from 5 elements, each difference is 1.",
+        "fr": "chunked garde la fin courte : [[1,2],[3,4],[5]]. windowed(2, step = 2) ignore les fenêtres partielles par défaut : [[1,2],[3,4]] sans [5]. zipWithNext apparie les éléments consécutifs : 4 paires pour 5 éléments, chaque différence vaut 1."
+      }
+    }
+  ]
+}
