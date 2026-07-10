@@ -1,0 +1,560 @@
+{
+  "id": "coroutines",
+  "title": { "en": "Coroutines", "fr": "Coroutines" },
+  "tagline": {
+    "en": "Structured concurrency, Flow, dispatchers",
+    "fr": "Concurrence structurée, Flow, dispatchers"
+  },
+  "icon": "🌀",
+  "lessons": [
+    {
+      "id": "suspend-builders",
+      "title": {
+        "en": "Suspending functions & builders",
+        "fr": "Fonctions suspendues & builders"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "A `suspend` function can pause without blocking its thread. The compiler rewrites it using a continuation (CPS transform): every suspension point is a place where the function can return early and resume later. A suspend function can only be called from another suspend function or from a coroutine.",
+            "fr": "Une fonction `suspend` peut se mettre en pause sans bloquer son thread. Le compilateur la réécrit avec une continuation (transformation CPS) : chaque point de suspension est un endroit où la fonction peut rendre la main et reprendre plus tard. Une fonction suspend ne peut être appelée que depuis une autre fonction suspend ou depuis une coroutine."
+          }
+        },
+        {
+          "type": "code",
+          "code": "suspend fun fetchUser(id: String): User {\n    delay(100)            // suspends, does not block\n    return api.user(id)   // another suspension point\n}",
+          "caption": {
+            "en": "delay() suspends the coroutine; Thread.sleep() would block the thread.",
+            "fr": "delay() suspend la coroutine ; Thread.sleep() bloquerait le thread."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Coroutines are started with builders: `launch` returns a `Job` (fire and forget), `async` returns a `Deferred<T>` (a value to `await()`), and `runBlocking` bridges blocking code with suspending code, mostly in main() and tests.",
+            "fr": "Les coroutines démarrent avec des builders : `launch` renvoie un `Job` (fire and forget), `async` renvoie un `Deferred<T>` (une valeur à `await()`), et `runBlocking` fait le pont entre code bloquant et code suspendu, surtout dans main() et les tests."
+          }
+        },
+        {
+          "type": "code",
+          "code": "val job: Job = scope.launch { doWork() }\nval user: Deferred<User> = scope.async { fetchUser(\"42\") }\nprintln(user.await().name)"
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "`async` swallows its exception until you call `await()`. If you never await a failed Deferred, the failure still cancels the parent scope, but you will not see the exception where you expect it. Use `launch` when you do not need a result.",
+            "fr": "`async` retient son exception jusqu'à l'appel de `await()`. Si vous n'attendez jamais un Deferred en échec, l'échec annule quand même le scope parent, mais l'exception n'apparaît pas là où vous l'attendez. Utilisez `launch` quand vous n'avez pas besoin de résultat."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Never use runBlocking inside a coroutine or on a UI thread: it defeats the whole point by blocking the thread until completion.",
+            "fr": "N'utilisez jamais runBlocking dans une coroutine ou sur un thread UI : cela bloque le thread jusqu'à la fin et annule tout l'intérêt des coroutines."
+          }
+        }
+      ]
+    },
+    {
+      "id": "structured-concurrency",
+      "title": {
+        "en": "Structured concurrency & cancellation",
+        "fr": "Concurrence structurée & annulation"
+      },
+      "minutes": 5,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "Every coroutine has a parent `Job`. Cancelling the parent cancels all children; a failing child cancels its parent and siblings (unless the scope uses a `SupervisorJob`). A scope only completes when all its children complete: no coroutine can leak out of its scope. That is structured concurrency.",
+            "fr": "Chaque coroutine a un `Job` parent. Annuler le parent annule tous les enfants ; un enfant qui échoue annule son parent et ses frères (sauf si le scope utilise un `SupervisorJob`). Un scope ne se termine que lorsque tous ses enfants sont terminés : aucune coroutine ne peut fuir hors de son scope. C'est la concurrence structurée."
+          }
+        },
+        {
+          "type": "code",
+          "code": "suspend fun loadDashboard(): Dashboard = coroutineScope {\n    val user = async { fetchUser() }\n    val news = async { fetchNews() }\n    Dashboard(user.await(), news.await())\n} // returns only when both children are done",
+          "caption": {
+            "en": "coroutineScope: if fetchNews() throws, fetchUser() is cancelled too.",
+            "fr": "coroutineScope : si fetchNews() échoue, fetchUser() est annulée aussi."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Cancellation is cooperative. cancel() only flips a flag; the coroutine must reach a suspension point (delay, yield, withContext) or check `isActive` / call `ensureActive()` to actually stop. CPU-bound loops that never suspend are effectively uncancellable.",
+            "fr": "L'annulation est coopérative. cancel() ne fait que lever un drapeau ; la coroutine doit atteindre un point de suspension (delay, yield, withContext) ou vérifier `isActive` / appeler `ensureActive()` pour s'arrêter vraiment. Une boucle CPU qui ne suspend jamais est de fait inannulable."
+          }
+        },
+        {
+          "type": "code",
+          "code": "val job = scope.launch {\n    while (isActive) {        // cooperative check\n        crunchNumbers()\n    }\n}\njob.cancelAndJoin()"
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "Catching a generic Exception inside a coroutine also catches CancellationException, which silently breaks cancellation. Either rethrow it, or catch more specific exceptions.",
+            "fr": "Attraper une Exception générique dans une coroutine attrape aussi CancellationException, ce qui casse silencieusement l'annulation. Relancez-la, ou attrapez des exceptions plus spécifiques."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "For cleanup that must run during cancellation (closing resources with suspend calls), wrap it in withContext(NonCancellable) inside the finally block.",
+            "fr": "Pour un nettoyage qui doit s'exécuter pendant l'annulation (fermer des ressources avec des appels suspend), enveloppez-le dans withContext(NonCancellable) dans le bloc finally."
+          }
+        }
+      ]
+    },
+    {
+      "id": "dispatchers-context",
+      "title": {
+        "en": "Dispatchers & coroutine context",
+        "fr": "Dispatchers & contexte de coroutine"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "A `CoroutineContext` is an indexed set of elements: Job, dispatcher, name, exception handler. Dispatchers decide which threads run the coroutine: `Default` for CPU-bound work (pool sized to CPU cores), `IO` for blocking I/O (large elastic pool), `Main` for UI threads, `Unconfined` almost never.",
+            "fr": "Un `CoroutineContext` est un ensemble indexé d'éléments : Job, dispatcher, nom, gestionnaire d'exceptions. Les dispatchers décident des threads qui exécutent la coroutine : `Default` pour le CPU (pool de la taille du nombre de coeurs), `IO` pour les I/O bloquantes (grand pool élastique), `Main` pour le thread UI, `Unconfined` presque jamais."
+          }
+        },
+        {
+          "type": "code",
+          "code": "suspend fun loadImage(path: String): Image =\n    withContext(Dispatchers.IO) {   // switch context, come back after\n        File(path).readBytes().decode()\n    }",
+          "caption": {
+            "en": "withContext is the idiomatic way to move work off the caller's dispatcher.",
+            "fr": "withContext est la façon idiomatique de déplacer un travail hors du dispatcher appelant."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "Dispatchers.Default and Dispatchers.IO share threads under the hood: withContext(Dispatchers.IO) from Default may not even switch threads. What matters is the pool's concurrency limit, not thread identity.",
+            "fr": "Dispatchers.Default et Dispatchers.IO partagent des threads en interne : withContext(Dispatchers.IO) depuis Default peut même ne pas changer de thread. Ce qui compte, c'est la limite de concurrence du pool, pas l'identité du thread."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Uncaught exceptions in `launch` propagate to the parent; a `CoroutineExceptionHandler` installed at the root scope is the last resort handler. In `async`, the exception belongs to the Deferred and surfaces at await().",
+            "fr": "Les exceptions non attrapées dans `launch` remontent au parent ; un `CoroutineExceptionHandler` installé sur le scope racine est le gestionnaire de dernier recours. Dans `async`, l'exception appartient au Deferred et surgit à await()."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Name your coroutines in complex systems: launch(CoroutineName(\"sync-user\")) makes thread dumps and debug logs readable (enable -Dkotlinx.coroutines.debug).",
+            "fr": "Nommez vos coroutines dans les systèmes complexes : launch(CoroutineName(\"sync-user\")) rend les thread dumps et les logs lisibles (activez -Dkotlinx.coroutines.debug)."
+          }
+        }
+      ]
+    },
+    {
+      "id": "flow-essentials",
+      "title": { "en": "Flow essentials", "fr": "L'essentiel de Flow" },
+      "minutes": 5,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "A `Flow<T>` is a cold asynchronous stream: the builder block runs anew for every collector, and nothing happens until a terminal operator (collect, toList, first) is called. Intermediate operators (map, filter, take) are lazy and do not trigger execution.",
+            "fr": "Un `Flow<T>` est un flux asynchrone froid : le bloc du builder s'exécute pour chaque collecteur, et rien ne se passe tant qu'un opérateur terminal (collect, toList, first) n'est pas appelé. Les opérateurs intermédiaires (map, filter, take) sont paresseux et ne déclenchent rien."
+          }
+        },
+        {
+          "type": "code",
+          "code": "val numbers = flow {\n    println(\"started\")\n    emit(1); emit(2)\n}\nval doubled = numbers.map { it * 2 } // nothing printed yet\ndoubled.collect { println(it) }      // started, 2, 4",
+          "caption": {
+            "en": "Cold: the flow body runs only at collection time.",
+            "fr": "Froid : le corps du flow ne s'exécute qu'à la collecte."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "`flowOn(dispatcher)` changes the context of the upstream (everything above it), never of the collector. Collection always happens in the collector's context; that is context preservation, one of Flow's core guarantees.",
+            "fr": "`flowOn(dispatcher)` change le contexte de l'amont (tout ce qui est au-dessus), jamais celui du collecteur. La collecte se fait toujours dans le contexte du collecteur ; c'est la préservation du contexte, une garantie fondamentale de Flow."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Hot flows: `StateFlow` holds exactly one current value (a reactive variable, always has a value, conflates updates), `SharedFlow` is a configurable broadcast (replay, buffer, no initial value). Convert cold to hot with stateIn / shareIn.",
+            "fr": "Flows chauds : `StateFlow` détient exactement une valeur courante (variable réactive, toujours une valeur, mises à jour conflées), `SharedFlow` est une diffusion configurable (replay, buffer, pas de valeur initiale). On convertit froid vers chaud avec stateIn / shareIn."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "StateFlow conflates: fast consecutive emissions of distinct values may skip intermediate values, and re-setting an equal value emits nothing. Use SharedFlow for events that must all be delivered.",
+            "fr": "StateFlow confle : des émissions rapides de valeurs distinctes peuvent sauter des valeurs intermédiaires, et réaffecter une valeur égale n'émet rien. Utilisez SharedFlow pour des événements qui doivent tous être délivrés."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Channels are for one-shot communication between coroutines (each value consumed once); flows are for streams of values. If several consumers must each see every value, you want SharedFlow, not a Channel.",
+            "fr": "Les channels servent à la communication ponctuelle entre coroutines (chaque valeur consommée une fois) ; les flows servent aux flux de valeurs. Si plusieurs consommateurs doivent chacun tout voir, il vous faut SharedFlow, pas un Channel."
+          }
+        }
+      ]
+    }
+  ],
+  "flashcards": [
+    {
+      "id": "fc-suspend",
+      "front": {
+        "en": "What does the `suspend` modifier actually do to a function?",
+        "fr": "Que fait réellement le modificateur `suspend` sur une fonction ?"
+      },
+      "back": {
+        "en": "The compiler rewrites it in continuation-passing style: it gains a hidden Continuation parameter and can pause at suspension points without blocking the thread. Callable only from suspend contexts.",
+        "fr": "Le compilateur la réécrit en continuation-passing style : elle gagne un paramètre Continuation caché et peut se mettre en pause aux points de suspension sans bloquer le thread. Appelable uniquement depuis un contexte suspend."
+      }
+    },
+    {
+      "id": "fc-launch-async",
+      "front": {
+        "en": "launch vs async: return types and when to use each?",
+        "fr": "launch vs async : types de retour et quand utiliser chacun ?"
+      },
+      "back": {
+        "en": "launch returns Job (fire and forget, exceptions propagate immediately). async returns Deferred<T> (result via await(), exception surfaces at await). Use async only when you need the value.",
+        "fr": "launch renvoie Job (fire and forget, les exceptions se propagent immédiatement). async renvoie Deferred<T> (résultat via await(), exception à await). Utilisez async seulement quand vous avez besoin de la valeur."
+      }
+    },
+    {
+      "id": "fc-runblocking",
+      "front": {
+        "en": "Where is runBlocking legitimate, and where is it a bug?",
+        "fr": "Où runBlocking est-il légitime, et où est-ce un bug ?"
+      },
+      "back": {
+        "en": "Legitimate at the blocking/suspending boundary: main(), tests, simple CLIs. A bug inside coroutines or on UI threads, where it blocks the thread and can deadlock.",
+        "fr": "Légitime à la frontière bloquant/suspendu : main(), tests, CLI simples. Un bug dans une coroutine ou sur un thread UI, où il bloque le thread et peut provoquer un deadlock."
+      }
+    },
+    {
+      "id": "fc-scope-supervisor",
+      "front": {
+        "en": "coroutineScope vs supervisorScope: what changes on child failure?",
+        "fr": "coroutineScope vs supervisorScope : que change l'échec d'un enfant ?"
+      },
+      "back": {
+        "en": "In coroutineScope a failing child cancels the scope and all siblings. In supervisorScope siblings survive; each child's failure is handled independently.",
+        "fr": "Dans coroutineScope, un enfant qui échoue annule le scope et tous ses frères. Dans supervisorScope, les frères survivent ; chaque échec est géré indépendamment."
+      }
+    },
+    {
+      "id": "fc-cancellation",
+      "front": {
+        "en": "Why is coroutine cancellation said to be cooperative?",
+        "fr": "Pourquoi dit-on que l'annulation des coroutines est coopérative ?"
+      },
+      "back": {
+        "en": "cancel() only marks the Job as cancelled. The coroutine actually stops at its next suspension point, or when it checks isActive / calls ensureActive(). Code that never suspends nor checks cannot be cancelled.",
+        "fr": "cancel() ne fait que marquer le Job comme annulé. La coroutine s'arrête à son prochain point de suspension, ou quand elle vérifie isActive / appelle ensureActive(). Un code qui ne suspend jamais et ne vérifie rien est inannulable."
+      }
+    },
+    {
+      "id": "fc-cancellation-exception",
+      "front": {
+        "en": "What is the classic mistake with try/catch inside coroutines?",
+        "fr": "Quelle est l'erreur classique avec try/catch dans une coroutine ?"
+      },
+      "back": {
+        "en": "Catching Exception (or Throwable) also swallows CancellationException, so the coroutine keeps running after being cancelled. Rethrow CancellationException or catch specific types.",
+        "fr": "Attraper Exception (ou Throwable) avale aussi CancellationException : la coroutine continue après annulation. Relancez CancellationException ou attrapez des types spécifiques."
+      }
+    },
+    {
+      "id": "fc-noncancellable",
+      "front": {
+        "en": "How do you run suspending cleanup code while being cancelled?",
+        "fr": "Comment exécuter du nettoyage suspendu pendant une annulation ?"
+      },
+      "back": {
+        "en": "In the finally block, wrap it in withContext(NonCancellable) { ... }. Without it, any suspend call in a cancelled coroutine throws CancellationException immediately.",
+        "fr": "Dans le bloc finally, enveloppez-le dans withContext(NonCancellable) { ... }. Sinon, tout appel suspend dans une coroutine annulée lève immédiatement CancellationException."
+      }
+    },
+    {
+      "id": "fc-dispatchers",
+      "front": {
+        "en": "Dispatchers.Default vs Dispatchers.IO: pools and use cases?",
+        "fr": "Dispatchers.Default vs Dispatchers.IO : pools et cas d'usage ?"
+      },
+      "back": {
+        "en": "Default: pool sized to CPU cores, for CPU-bound work. IO: large elastic pool (64+ threads), for blocking I/O. They share threads internally, so switching between them can avoid a real thread switch.",
+        "fr": "Default : pool de la taille du nombre de coeurs, pour le CPU. IO : grand pool élastique (64+ threads), pour les I/O bloquantes. Ils partagent leurs threads en interne, donc passer de l'un à l'autre peut éviter un vrai changement de thread."
+      }
+    },
+    {
+      "id": "fc-withcontext",
+      "front": {
+        "en": "What does withContext(context) { ... } guarantee?",
+        "fr": "Que garantit withContext(context) { ... } ?"
+      },
+      "back": {
+        "en": "Runs the block in the merged context (usually another dispatcher), suspends until the block completes, returns its result, and resumes in the original context. It is the idiomatic sequential context switch.",
+        "fr": "Exécute le bloc dans le contexte fusionné (souvent un autre dispatcher), suspend jusqu'à la fin du bloc, renvoie son résultat et reprend dans le contexte d'origine. C'est le changement de contexte séquentiel idiomatique."
+      }
+    },
+    {
+      "id": "fc-cold-flow",
+      "front": {
+        "en": "What does it mean that Flow is cold?",
+        "fr": "Que signifie le fait que Flow soit froid ?"
+      },
+      "back": {
+        "en": "The flow builder body does not run until a terminal operator collects it, and it runs independently for each collector. Intermediate operators are lazy declarations, not executions.",
+        "fr": "Le corps du builder ne s'exécute pas tant qu'un opérateur terminal ne collecte pas, et il s'exécute indépendamment pour chaque collecteur. Les opérateurs intermédiaires sont des déclarations paresseuses, pas des exécutions."
+      }
+    },
+    {
+      "id": "fc-flowon",
+      "front": {
+        "en": "What exactly does flowOn(dispatcher) change?",
+        "fr": "Que change exactement flowOn(dispatcher) ?"
+      },
+      "back": {
+        "en": "Only the context of the upstream operators above it. Collection always stays in the collector's context (context preservation). Multiple flowOn calls each affect their own upstream segment.",
+        "fr": "Uniquement le contexte des opérateurs en amont. La collecte reste toujours dans le contexte du collecteur (préservation du contexte). Plusieurs flowOn affectent chacun leur segment amont."
+      }
+    },
+    {
+      "id": "fc-stateflow-sharedflow",
+      "front": {
+        "en": "StateFlow vs SharedFlow: which one for state, which one for events?",
+        "fr": "StateFlow vs SharedFlow : lequel pour l'état, lequel pour les événements ?"
+      },
+      "back": {
+        "en": "StateFlow for state: always one current value, new collectors get it immediately, equal values are skipped (conflation). SharedFlow for events: configurable replay/buffer, every emission is delivered, no equality skipping.",
+        "fr": "StateFlow pour l'état : toujours une valeur courante, les nouveaux collecteurs la reçoivent immédiatement, les valeurs égales sont ignorées (conflation). SharedFlow pour les événements : replay/buffer configurables, chaque émission est délivrée, pas de filtrage par égalité."
+      }
+    }
+  ],
+  "exercises": [
+    {
+      "id": "ex-async-return",
+      "kind": "mcq",
+      "difficulty": 1,
+      "prompt": {
+        "en": "What does `async { ... }` return, and when does an exception thrown inside it surface?",
+        "fr": "Que renvoie `async { ... }`, et quand une exception levée à l'intérieur apparaît-elle ?"
+      },
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "A Job; the exception propagates immediately to the parent",
+            "fr": "Un Job ; l'exception se propage immédiatement au parent"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "A Deferred<T>; the exception surfaces when await() is called",
+            "fr": "Un Deferred<T> ; l'exception apparaît à l'appel de await()"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "A Deferred<T>; the exception is silently dropped",
+            "fr": "Un Deferred<T> ; l'exception est silencieusement perdue"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "A T directly; async blocks until the value is ready",
+            "fr": "Un T directement ; async bloque jusqu'à ce que la valeur soit prête"
+          }
+        }
+      ],
+      "answerId": "b",
+      "explanation": {
+        "en": "async returns Deferred<T>. The exception is stored in the Deferred and rethrown at await(). Note: in a regular (non supervisor) scope it also cancels the parent, but the visible surfacing point is await().",
+        "fr": "async renvoie Deferred<T>. L'exception est stockée dans le Deferred et relancée à await(). Note : dans un scope normal (non supervisor), elle annule aussi le parent, mais le point d'apparition visible est await()."
+      }
+    },
+    {
+      "id": "ex-launch-order",
+      "kind": "predict-output",
+      "difficulty": 2,
+      "prompt": {
+        "en": "What does this program print?",
+        "fr": "Qu'affiche ce programme ?"
+      },
+      "code": "fun main() = runBlocking {\n    launch {\n        println(\"B\")\n        delay(100)\n        println(\"D\")\n    }\n    println(\"A\")\n    delay(50)\n    println(\"C\")\n}",
+      "choices": [
+        { "id": "a", "label": { "en": "A B C D", "fr": "A B C D" } },
+        { "id": "b", "label": { "en": "B A C D", "fr": "B A C D" } },
+        { "id": "c", "label": { "en": "A B D C", "fr": "A B D C" } },
+        { "id": "d", "label": { "en": "B D A C", "fr": "B D A C" } }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "launch schedules the child but the parent keeps running until its first suspension: A prints first. delay(50) suspends the parent, the child runs and prints B then suspends on delay(100). Parent resumes at t=50 and prints C, child resumes at t=100 and prints D. runBlocking waits for its child.",
+        "fr": "launch planifie l'enfant mais le parent continue jusqu'à sa première suspension : A s'affiche d'abord. delay(50) suspend le parent, l'enfant s'exécute, affiche B puis suspend sur delay(100). Le parent reprend à t=50 et affiche C, l'enfant reprend à t=100 et affiche D. runBlocking attend son enfant."
+      }
+    },
+    {
+      "id": "ex-swallowed-cancellation",
+      "kind": "find-bug",
+      "difficulty": 2,
+      "prompt": {
+        "en": "This worker never stops when cancelled. Where is the bug?",
+        "fr": "Ce worker ne s'arrête jamais quand on l'annule. Où est le bug ?"
+      },
+      "code": "val job = scope.launch {\n    while (true) {\n        try {\n            poll()          // suspend fun\n            delay(1_000)\n        } catch (e: Exception) {\n            log(\"retrying\", e)\n        }\n    }\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "while (true) must be while (isActive)",
+            "fr": "while (true) devrait être while (isActive)"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "catch (e: Exception) swallows CancellationException, so cancellation never escapes the loop",
+            "fr": "catch (e: Exception) avale CancellationException, donc l'annulation ne sort jamais de la boucle"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "delay() must not be called inside a try block",
+            "fr": "delay() ne doit pas être appelé dans un bloc try"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "poll() should be wrapped in withContext(Dispatchers.IO)",
+            "fr": "poll() devrait être enveloppé dans withContext(Dispatchers.IO)"
+          }
+        }
+      ],
+      "answerId": "b",
+      "explanation": {
+        "en": "On cancellation, delay() throws CancellationException, but the generic catch swallows it and loops again. Rethrow it (if (e is CancellationException) throw e) or catch specific exceptions. while (isActive) alone would also work here, but the catch is the actual bug: it defeats every suspension point.",
+        "fr": "À l'annulation, delay() lève CancellationException, mais le catch générique l'avale et la boucle repart. Relancez-la (if (e is CancellationException) throw e) ou attrapez des types précis. while (isActive) aiderait aussi, mais le catch est le vrai bug : il neutralise tous les points de suspension."
+      }
+    },
+    {
+      "id": "ex-dispatcher-choice",
+      "kind": "mcq",
+      "difficulty": 1,
+      "prompt": {
+        "en": "You need to parse a 200 MB JSON file already loaded in memory (pure CPU work). Which dispatcher?",
+        "fr": "Vous devez parser un JSON de 200 Mo déjà chargé en mémoire (travail purement CPU). Quel dispatcher ?"
+      },
+      "choices": [
+        { "id": "a", "label": { "en": "Dispatchers.Main", "fr": "Dispatchers.Main" } },
+        { "id": "b", "label": { "en": "Dispatchers.IO", "fr": "Dispatchers.IO" } },
+        { "id": "c", "label": { "en": "Dispatchers.Default", "fr": "Dispatchers.Default" } },
+        { "id": "d", "label": { "en": "Dispatchers.Unconfined", "fr": "Dispatchers.Unconfined" } }
+      ],
+      "answerId": "c",
+      "explanation": {
+        "en": "CPU-bound work belongs on Dispatchers.Default, sized to the number of cores. Dispatchers.IO is oversized for blocking I/O: running CPU work there can oversubscribe the CPU with far more threads than cores.",
+        "fr": "Le travail CPU va sur Dispatchers.Default, dimensionné au nombre de coeurs. Dispatchers.IO est surdimensionné pour les I/O bloquantes : y mettre du CPU peut sursouscrire le processeur avec bien plus de threads que de coeurs."
+      }
+    },
+    {
+      "id": "ex-cold-flow-output",
+      "kind": "predict-output",
+      "difficulty": 2,
+      "prompt": {
+        "en": "What does this program print?",
+        "fr": "Qu'affiche ce programme ?"
+      },
+      "code": "fun main() = runBlocking {\n    val f = flow {\n        println(\"producing\")\n        emit(1)\n    }.map { it * 10 }\n\n    println(\"declared\")\n    f.collect { println(it) }\n    f.collect { println(it) }\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "producing / declared / 10 / 10",
+            "fr": "producing / declared / 10 / 10"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "declared / producing / 10 / producing / 10",
+            "fr": "declared / producing / 10 / producing / 10"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "declared / producing / 10 / 10",
+            "fr": "declared / producing / 10 / 10"
+          }
+        },
+        {
+          "id": "d",
+          "label": { "en": "declared / 10 / 10", "fr": "declared / 10 / 10" }
+        }
+      ],
+      "answerId": "b",
+      "explanation": {
+        "en": "Flows are cold: building and mapping the flow executes nothing, so declared prints first. Each collect re-runs the builder from scratch, hence producing appears twice, once per collection.",
+        "fr": "Les flows sont froids : construire et mapper le flow n'exécute rien, donc declared s'affiche d'abord. Chaque collect relance le builder depuis le début, d'où producing deux fois, une par collecte."
+      }
+    },
+    {
+      "id": "ex-scope-leak",
+      "kind": "find-bug",
+      "difficulty": 3,
+      "prompt": {
+        "en": "This repository function compiles and works, but reviewers reject it. What is the structural problem?",
+        "fr": "Cette fonction de repository compile et fonctionne, mais la revue de code la refuse. Quel est le problème structurel ?"
+      },
+      "code": "suspend fun refreshAll(ids: List<String>) {\n    ids.forEach { id ->\n        GlobalScope.launch {\n            refresh(id)\n        }\n    }\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "forEach cannot be used with launch inside",
+            "fr": "forEach ne peut pas contenir de launch"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "GlobalScope breaks structured concurrency: refreshAll returns before the work is done, nothing ties the coroutines' lifetime, errors and cancellation are lost",
+            "fr": "GlobalScope casse la concurrence structurée : refreshAll rend la main avant la fin du travail, rien ne rattache la vie des coroutines, erreurs et annulation sont perdues"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "launch should be async since refresh returns a value",
+            "fr": "launch devrait être async puisque refresh renvoie une valeur"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "A suspend function is not allowed to start coroutines",
+            "fr": "Une fonction suspend n'a pas le droit de démarrer des coroutines"
+          }
+        }
+      ],
+      "answerId": "b",
+      "explanation": {
+        "en": "GlobalScope coroutines outlive the caller: refreshAll returns immediately, failures vanish, and cancelling the caller cancels nothing. The idiomatic fix is coroutineScope { ids.forEach { launch { refresh(it) } } }, which waits for all children and propagates errors and cancellation.",
+        "fr": "Les coroutines de GlobalScope survivent à l'appelant : refreshAll rend la main immédiatement, les échecs disparaissent, annuler l'appelant n'annule rien. Le correctif idiomatique est coroutineScope { ids.forEach { launch { refresh(it) } } }, qui attend tous les enfants et propage erreurs et annulation."
+      }
+    }
+  ]
+}

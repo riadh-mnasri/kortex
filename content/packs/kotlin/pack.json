@@ -1,0 +1,117 @@
+{
+  "id": "kotlin",
+  "name": "Kortex",
+  "targetVersion": "2.2",
+  "modules": [
+    {
+      "id": "basics",
+      "title": { "en": "Language basics", "fr": "Bases du langage" },
+      "tagline": {
+        "en": "Types, null safety, smart casts, ranges",
+        "fr": "Types, null safety, smart casts, ranges"
+      },
+      "icon": "🧱",
+      "status": "planned"
+    },
+    {
+      "id": "functions",
+      "title": { "en": "Functions & lambdas", "fr": "Fonctions & lambdas" },
+      "tagline": {
+        "en": "Extensions, infix, operators, inline",
+        "fr": "Extensions, infix, opérateurs, inline"
+      },
+      "icon": "🧩",
+      "status": "planned"
+    },
+    {
+      "id": "classes",
+      "title": { "en": "Classes & objects", "fr": "Classes & objets" },
+      "tagline": {
+        "en": "Data, sealed, delegation, value classes",
+        "fr": "Data, sealed, délégation, value classes"
+      },
+      "icon": "🏛️",
+      "status": "planned"
+    },
+    {
+      "id": "generics",
+      "title": { "en": "Generics", "fr": "Génériques" },
+      "tagline": {
+        "en": "Variance, reified, constraints",
+        "fr": "Variance, reified, contraintes"
+      },
+      "icon": "🧬",
+      "status": "planned"
+    },
+    {
+      "id": "collections",
+      "title": { "en": "Collections & sequences", "fr": "Collections & séquences" },
+      "tagline": {
+        "en": "Stdlib API, immutability, laziness",
+        "fr": "API stdlib, immutabilité, paresse"
+      },
+      "icon": "📦",
+      "status": "planned"
+    },
+    {
+      "id": "scope-functions",
+      "title": { "en": "Scope functions", "fr": "Fonctions de portée" },
+      "tagline": {
+        "en": "let, run, with, apply, also",
+        "fr": "let, run, with, apply, also"
+      },
+      "icon": "🔭",
+      "status": "planned"
+    },
+    {
+      "id": "coroutines",
+      "title": { "en": "Coroutines", "fr": "Coroutines" },
+      "tagline": {
+        "en": "Structured concurrency, Flow, dispatchers",
+        "fr": "Concurrence structurée, Flow, dispatchers"
+      },
+      "icon": "🌀",
+      "status": "available"
+    },
+    {
+      "id": "advanced",
+      "title": { "en": "Advanced Kotlin", "fr": "Kotlin avancé" },
+      "tagline": {
+        "en": "Delegated properties, DSLs, contracts",
+        "fr": "Propriétés déléguées, DSL, contracts"
+      },
+      "icon": "🚀",
+      "status": "planned"
+    },
+    {
+      "id": "interop-multiplatform",
+      "title": { "en": "Java interop & KMP", "fr": "Interop Java & KMP" },
+      "tagline": {
+        "en": "Interoperability, Kotlin Multiplatform",
+        "fr": "Interopérabilité, Kotlin Multiplatform"
+      },
+      "icon": "🌉",
+      "status": "planned"
+    },
+    {
+      "id": "idioms",
+      "title": { "en": "Idioms & best practices", "fr": "Idiomes & bonnes pratiques" },
+      "tagline": {
+        "en": "Idiomatic Kotlin, differences with Java",
+        "fr": "Kotlin idiomatique, différences avec Java"
+      },
+      "icon": "🎯",
+      "status": "planned"
+    },
+    {
+      "id": "whats-new",
+      "title": { "en": "What's new in Kotlin", "fr": "Nouveautés Kotlin" },
+      "tagline": {
+        "en": "K2, Kotlin 2.x features, context parameters",
+        "fr": "K2, fonctionnalités Kotlin 2.x, context parameters"
+      },
+      "icon": "✨",
+      "status": "planned"
+    }
+  ]
+}

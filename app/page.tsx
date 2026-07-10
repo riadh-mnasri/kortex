@@ -1,65 +1,172 @@
-import Image from "next/image";
+/*
+ * Copyright (c) 2026 Riadh MNASRI. All rights reserved.
+ *
+ * Dashboard: daily stats, activity heatmap and the module catalog.
+ */
+"use client";
 
-export default function Home() {
+import Link from "next/link";
+import { useLocale } from "@/lib/i18n";
+import { useProgress, dueCardIds } from "@/lib/engine/progress";
+import { computeStreak, levelProgress } from "@/lib/engine/gamification";
+import { toDayKey } from "@/lib/engine/srs";
+import { allCardIds, coverage, getModule, moduleRefs } from "@/lib/content";
+import { pick } from "@/lib/content/types";
+import { Heatmap } from "@/components/Heatmap";
+
+export default function DashboardPage() {
+  const { t, locale } = useLocale();
+  const { progress, ready } = useProgress();
+
+  const today = toDayKey(new Date());
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12
+      ? t("dashboard.greeting.morning")
+      : hour < 18
+        ? t("dashboard.greeting.afternoon")
+        : t("dashboard.greeting.evening");
+
+  const streak = computeStreak(progress.activity, today);
+  const { level, current, needed } = levelProgress(progress.xp);
+  const due = dueCardIds(progress, allCardIds(), today).length;
+  const cov = coverage(progress.lessonsDone, progress.cards, progress.exercises);
+  const covPct = cov.total === 0 ? 0 : Math.round((cov.done / cov.total) * 100);
+
+  if (!ready) return null;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">
+          {greeting}, Riadh 👋
+        </h1>
+        <p className="text-muted mt-1">{t("dashboard.subtitle")}</p>
+      </div>
+
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard icon="🔥" label={t("stats.streak")} value={String(streak)} />
+        <StatCard
+          icon="⭐"
+          label={`${t("stats.level")} ${level}`}
+          value={`${current}/${needed} ${t("stats.xp")}`}
+          progress={needed === 0 ? 0 : current / needed}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+        <StatCard
+          icon="🃏"
+          label={t("stats.due")}
+          value={String(due)}
+          href="/review"
+          highlight={due > 0}
+        />
+        <StatCard
+          icon="📈"
+          label={t("stats.coverage")}
+          value={`${covPct}%`}
+          progress={covPct / 100}
+        />
+      </div>
+
+      {/* Heatmap */}
+      <section className="rounded-2xl border border-border bg-surface p-5">
+        <h2 className="font-semibold mb-4">{t("heatmap.title")}</h2>
+        <Heatmap activity={progress.activity} today={today} />
+      </section>
+
+      {/* Modules */}
+      <section>
+        <h2 className="font-semibold mb-4">{t("modules.title")}</h2>
+        <div className="grid sm:grid-cols-2 gap-3">
+          {moduleRefs().map((ref) => {
+            const mod = getModule(ref.id);
+            const lessonsDone = mod
+              ? mod.lessons.filter((l) => progress.lessonsDone[l.id]).length
+              : 0;
+            return mod && ref.status === "available" ? (
+              <Link
+                key={ref.id}
+                href={`/module/${ref.id}`}
+                className="group rounded-2xl border border-border bg-surface p-5 hover:border-accent transition-colors"
+              >
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">{ref.icon}</span>
+                  <div className="min-w-0">
+                    <h3 className="font-semibold group-hover:text-accent transition-colors">
+                      {pick(ref.title, locale)}
+                    </h3>
+                    <p className="text-sm text-muted truncate">
+                      {pick(ref.tagline, locale)}
+                    </p>
+                    <p className="text-xs text-muted mt-2">
+                      {lessonsDone}/{mod.lessons.length} {t("modules.lessons")}{" "}
+                      · {mod.flashcards.length} {t("modules.cards")} ·{" "}
+                      {mod.exercises.length} {t("modules.exercises")}
+                    </p>
+                  </div>
+                </div>
+              </Link>
+            ) : (
+              <div
+                key={ref.id}
+                className="rounded-2xl border border-dashed border-border p-5 opacity-60"
+              >
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl grayscale">{ref.icon}</span>
+                  <div>
+                    <h3 className="font-semibold">{pick(ref.title, locale)}</h3>
+                    <p className="text-sm text-muted">
+                      {pick(ref.tagline, locale)}
+                    </p>
+                    <span className="inline-block mt-2 text-xs px-2 py-0.5 rounded-full bg-surface-2 text-muted">
+                      {t("modules.planned")}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </section>
     </div>
   );
+}
+
+function StatCard({
+  icon,
+  label,
+  value,
+  progress,
+  href,
+  highlight,
+}: {
+  icon: string;
+  label: string;
+  value: string;
+  progress?: number;
+  href?: string;
+  highlight?: boolean;
+}) {
+  const body = (
+    <div
+      className={`rounded-2xl border p-4 h-full bg-surface transition-colors ${
+        highlight ? "border-accent" : "border-border"
+      } ${href ? "hover:border-accent" : ""}`}
+    >
+      <div className="flex items-center gap-2 text-sm text-muted">
+        <span>{icon}</span>
+        <span>{label}</span>
+      </div>
+      <div className="mt-1.5 text-xl font-bold tracking-tight">{value}</div>
+      {progress !== undefined && (
+        <div className="mt-2 h-1.5 rounded-full bg-surface-2 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-accent transition-all"
+            style={{ width: `${Math.min(100, Math.round(progress * 100))}%` }}
+          />
+        </div>
+      )}
+    </div>
+  );
+  return href ? <Link href={href}>{body}</Link> : body;
 }
