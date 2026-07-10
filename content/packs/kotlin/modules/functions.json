@@ -1,0 +1,630 @@
+{
+  "id": "functions",
+  "title": { "en": "Functions & lambdas", "fr": "Fonctions & lambdas" },
+  "tagline": {
+    "en": "Extensions, infix, operators, inline",
+    "fr": "Extensions, infix, opérateurs, inline"
+  },
+  "icon": "🧩",
+  "lessons": [
+    {
+      "id": "declarations-args",
+      "title": {
+        "en": "Declarations, default & named arguments",
+        "fr": "Déclarations, arguments par défaut & nommés"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "Default argument values kill most overloads: one declaration replaces a whole telescoping chain. Named arguments let call sites skip parameters and document intent; past the first named argument, all following arguments must be named too (until Kotlin allows positional after named in trailing lambda position).",
+            "fr": "Les valeurs par défaut éliminent la plupart des surcharges : une déclaration remplace toute une chaîne télescopique. Les arguments nommés permettent de sauter des paramètres et documentent l'intention ; après le premier argument nommé, les suivants doivent aussi être nommés."
+          }
+        },
+        {
+          "type": "code",
+          "code": "fun connect(\n    host: String,\n    port: Int = 5432,\n    tls: Boolean = true,\n    timeout: Duration = 30.seconds,\n) = ...\n\nconnect(\"db.local\", timeout = 5.seconds) // skips port and tls",
+          "caption": {
+            "en": "Default values are evaluated at call time, left to right, and can use previous parameters.",
+            "fr": "Les valeurs par défaut sont évaluées à l'appel, de gauche à droite, et peuvent utiliser les paramètres précédents."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "Java callers do not see default values: they must pass everything, unless you annotate the function with @JvmOverloads to generate the telescoping overloads. Also, overriding methods cannot restate default values; the base declaration's defaults always apply.",
+            "fr": "Les appelants Java ne voient pas les valeurs par défaut : ils doivent tout passer, sauf si la fonction porte @JvmOverloads qui génère les surcharges télescopiques. De plus, une méthode override ne peut pas redéclarer de valeurs par défaut ; celles de la déclaration de base s'appliquent toujours."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "`vararg` accepts zero or more values and arrives as an array. To pass an existing array, spread it with `*`: `format(template, *values)`. Only one vararg per function; parameters after it must be passed by name. Single-expression functions (`fun double(x: Int) = x * 2`) infer their return type.",
+            "fr": "`vararg` accepte zéro ou plusieurs valeurs et arrive sous forme de tableau. Pour passer un tableau existant, dépliez-le avec `*` : `format(template, *values)`. Un seul vararg par fonction ; les paramètres suivants se passent par nom. Les fonctions à expression unique (`fun double(x: Int) = x * 2`) infèrent leur type de retour."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "The spread operator copies the array on the JVM. In hot paths taking large arrays, prefer an overload accepting the array (or a List) directly.",
+            "fr": "L'opérateur spread copie le tableau sur la JVM. Dans les chemins chauds avec de gros tableaux, préférez une surcharge acceptant directement le tableau (ou une List)."
+          }
+        }
+      ]
+    },
+    {
+      "id": "extensions",
+      "title": { "en": "Extension functions", "fr": "Fonctions d'extension" },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "An extension adds a callable to a type without modifying it: `fun String.middle(): Char`. Inside, `this` is the receiver. Extensions compile to plain static functions taking the receiver as first parameter: no monkey patching, no runtime magic, and they can be called from Java as `FileKt.middle(s)`.",
+            "fr": "Une extension ajoute un appelable à un type sans le modifier : `fun String.middle(): Char`. À l'intérieur, `this` est le récepteur. Les extensions compilent en simples fonctions statiques prenant le récepteur en premier paramètre : pas de monkey patching, pas de magie à l'exécution, et Java les appelle comme `FileKt.middle(s)`."
+          }
+        },
+        {
+          "type": "code",
+          "code": "open class Shape\nclass Circle : Shape()\n\nfun Shape.describe() = \"shape\"\nfun Circle.describe() = \"circle\"\n\nval s: Shape = Circle()\nprintln(s.describe()) // \"shape\": resolved on the STATIC type",
+          "caption": {
+            "en": "Extensions are resolved statically, on the declared type, never virtually.",
+            "fr": "Les extensions sont résolues statiquement, sur le type déclaré, jamais virtuellement."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "If a class has a member with the same signature, the member always wins over any extension, even a more specific one. An extension can only shadow members by differing in signature (e.g. adding a default parameter creates ambiguity, not priority).",
+            "fr": "Si une classe a un membre de même signature, le membre gagne toujours sur toute extension, même plus spécifique. Une extension ne peut contourner un membre qu'en différant par sa signature (ajouter un paramètre par défaut crée une ambiguïté, pas une priorité)."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Extensions on nullable receivers are legal and idiomatic: `fun String?.orEmpty(): String = this ?: \"\"` can be called on a null value because null checking happens inside. Extension properties exist too, but without backing fields: getter (and setter) only.",
+            "fr": "Les extensions sur récepteur nullable sont légales et idiomatiques : `fun String?.orEmpty(): String = this ?: \"\"` s'appelle sur une valeur nulle car le test de null se fait à l'intérieur. Les propriétés d'extension existent aussi, mais sans backing field : getter (et setter) uniquement."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Scope extensions deliberately: declared inside a class, an extension has two receivers (dispatch and extension) and is only visible in that class. Great for DSLs, confusing if overused.",
+            "fr": "Délimitez vos extensions : déclarée dans une classe, une extension a deux récepteurs (dispatch et extension) et n'est visible que dans cette classe. Excellent pour les DSL, déroutant si on en abuse."
+          }
+        }
+      ]
+    },
+    {
+      "id": "lambdas-hof",
+      "title": {
+        "en": "Lambdas & higher-order functions",
+        "fr": "Lambdas & fonctions d'ordre supérieur"
+      },
+      "minutes": 5,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "Function types are first-class: `(Int, Int) -> Int`, nullable `((Int) -> Unit)?`, with receiver `String.() -> Boolean`. A lambda's last expression is its return value. When the last parameter is a function, pass the lambda outside the parentheses (trailing lambda); with a single parameter, use the implicit `it`.",
+            "fr": "Les types fonction sont de première classe : `(Int, Int) -> Int`, nullable `((Int) -> Unit)?`, avec récepteur `String.() -> Boolean`. La dernière expression d'une lambda est sa valeur de retour. Quand le dernier paramètre est une fonction, passez la lambda hors des parenthèses (trailing lambda) ; à paramètre unique, utilisez le `it` implicite."
+          }
+        },
+        {
+          "type": "code",
+          "code": "val ops = mapOf<String, (Int, Int) -> Int>(\n    \"+\" to { a, b -> a + b },\n    \"*\" to Int::times,       // function reference\n)\nval apply3 = fun(f: (Int) -> Int) = f(3) // anonymous function"
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Closures capture variables, not values, and unlike Java they can capture and mutate `var`s: a captured var is wrapped in a Ref box. Function references come in flavors: `::top`, `String::length` (unbound receiver), `list::add` (bound), `::MyClass` (constructor).",
+            "fr": "Les closures capturent des variables, pas des valeurs, et contrairement à Java elles peuvent capturer et modifier des `var` : une var capturée est enveloppée dans une boîte Ref. Les références de fonctions se déclinent : `::top`, `String::length` (récepteur libre), `list::add` (lié), `::MyClass` (constructeur)."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "A bare `return` inside a lambda is a non-local return and only compiles if the lambda is passed to an inline function; it returns from the enclosing function, not from the lambda. To exit just the lambda, use a labeled return: `return@forEach`.",
+            "fr": "Un `return` nu dans une lambda est un retour non-local et ne compile que si la lambda est passée à une fonction inline ; il sort de la fonction englobante, pas de la lambda. Pour ne quitter que la lambda, utilisez un retour étiqueté : `return@forEach`."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Lambdas with receiver (`T.() -> R`) power every Kotlin DSL: inside the block, this is the receiver, so builders read declaratively. buildString, apply and Gradle's Kotlin DSL are all this one feature.",
+            "fr": "Les lambdas avec récepteur (`T.() -> R`) alimentent tous les DSL Kotlin : dans le bloc, this est le récepteur, les builders se lisent déclarativement. buildString, apply et le DSL Kotlin de Gradle reposent tous sur cette seule fonctionnalité."
+          }
+        }
+      ]
+    },
+    {
+      "id": "infix-operators",
+      "title": {
+        "en": "Infix functions & operator overloading",
+        "fr": "Fonctions infix & surcharge d'opérateurs"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "`infix` lets a function be called without dot and parentheses: `1 shl 3`, `\"key\" to value`. Requirements: member or extension function, exactly one parameter, no vararg, no default value. Infix calls have lower precedence than arithmetic: `1 shl 2 + 3` is `1 shl 5`.",
+            "fr": "`infix` permet d'appeler une fonction sans point ni parenthèses : `1 shl 3`, `\"key\" to value`. Conditions : fonction membre ou extension, exactement un paramètre, pas de vararg, pas de valeur par défaut. Les appels infix ont une précédence inférieure à l'arithmétique : `1 shl 2 + 3` vaut `1 shl 5`."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Operators are conventions: define `operator fun plus(other: T)` and `a + b` works. The catalog: arithmetic (plus, minus, times, div, rem), unary (unaryMinus, not), comparison via compareTo, indexing via get/set, invoke for call syntax, contains for `in`, rangeTo for `..`, componentN for destructuring, iterator for for-loops.",
+            "fr": "Les opérateurs sont des conventions : définissez `operator fun plus(other: T)` et `a + b` fonctionne. Le catalogue : arithmétique (plus, minus, times, div, rem), unaires (unaryMinus, not), comparaison via compareTo, indexation via get/set, invoke pour la syntaxe d'appel, contains pour `in`, rangeTo pour `..`, componentN pour la déstructuration, iterator pour les boucles for."
+          }
+        },
+        {
+          "type": "code",
+          "code": "data class Money(val cents: Long) {\n    operator fun plus(other: Money) = Money(cents + other.cents)\n    operator fun times(factor: Int) = Money(cents * factor)\n}\n\nval total = Money(1250) + Money(499) * 2",
+          "caption": {
+            "en": "Operator functions are ordinary functions; only the call syntax changes.",
+            "fr": "Les fonctions opérateur sont des fonctions ordinaires ; seule la syntaxe d'appel change."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "`a += b` first tries plusAssign, then falls back to `a = a + b` via plus. Defining both makes compound assignment ambiguous and the compiler rejects it. Mutable collection types define plusAssign, which is why `val list = mutableListOf(1); list += 2` compiles even though list is a val.",
+            "fr": "`a += b` essaie d'abord plusAssign, puis retombe sur `a = a + b` via plus. Définir les deux rend l'affectation composée ambiguë et le compilateur la rejette. Les collections mutables définissent plusAssign, c'est pourquoi `val list = mutableListOf(1); list += 2` compile bien que list soit un val."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Destructuring uses componentN operators: data classes generate them for constructor properties in order. `val (host, port) = endpoint` reads component1 and component2; in lambdas, `map.forEach { (k, v) -> ... }` destructures the entry.",
+            "fr": "La déstructuration utilise les opérateurs componentN : les data classes les génèrent pour les propriétés du constructeur, dans l'ordre. `val (host, port) = endpoint` lit component1 et component2 ; dans les lambdas, `map.forEach { (k, v) -> ... }` déstructure l'entrée."
+          }
+        }
+      ]
+    },
+    {
+      "id": "inline-reified",
+      "title": {
+        "en": "inline, noinline, crossinline & reified",
+        "fr": "inline, noinline, crossinline & reified"
+      },
+      "minutes": 5,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "`inline` copies the function body AND its lambda arguments into every call site. Benefits: zero lambda allocation, no virtual call, non-local returns allowed in the lambdas, and the door to reified type parameters. The stdlib's collection operators and scope functions are inline, which is why idiomatic Kotlin is cheaper than it looks.",
+            "fr": "`inline` copie le corps de la fonction ET ses lambdas dans chaque site d'appel. Bénéfices : zéro allocation de lambda, pas d'appel virtuel, retours non-locaux autorisés dans les lambdas, et la porte vers les paramètres de type reified. Les opérateurs de collections et scope functions de la stdlib sont inline, d'où un Kotlin idiomatique moins coûteux qu'il n'y paraît."
+          }
+        },
+        {
+          "type": "code",
+          "code": "inline fun <T> measure(label: String, block: () -> T): T {\n    val start = System.nanoTime()\n    try {\n        return block()\n    } finally {\n        log(\"$label took ${(System.nanoTime() - start) / 1_000_000} ms\")\n    }\n}"
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Two escape hatches: `noinline` marks a lambda parameter that must stay a real object (to store it or pass it to a non-inline function); `crossinline` allows the lambda to be called from another execution context (a nested lambda or Runnable) by forbidding non-local returns in it.",
+            "fr": "Deux échappatoires : `noinline` marque une lambda qui doit rester un vrai objet (pour la stocker ou la passer à une fonction non-inline) ; `crossinline` autorise l'appel de la lambda depuis un autre contexte d'exécution (lambda imbriquée ou Runnable) en y interdisant les retours non-locaux."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "`reified` keeps a type parameter's actual type at the call site, defeating JVM erasure: possible only on inline functions, since the body (and thus the concrete type) is copied in. Enables `T::class`, `x is T`, and clean APIs like `Gson.fromJson<User>(json)`.",
+            "fr": "`reified` conserve le type réel d'un paramètre de type au site d'appel, contournant l'effacement de la JVM : possible uniquement sur les fonctions inline, puisque le corps (donc le type concret) est copié. Permet `T::class`, `x is T`, et des API propres comme `Gson.fromJson<User>(json)`."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "Inlining is not free: large inline functions bloat bytecode at every call site, and public inline functions freeze their body into callers (changing the body requires recompiling all consumers). Inline for lambdas and reified, not for speed of ordinary code.",
+            "fr": "L'inlining n'est pas gratuit : de grosses fonctions inline gonflent le bytecode à chaque appel, et les fonctions inline publiques figent leur corps chez les appelants (changer le corps impose de recompiler tous les consommateurs). Inline pour les lambdas et reified, pas pour accélérer du code ordinaire."
+          }
+        }
+      ]
+    }
+  ],
+  "flashcards": [
+    {
+      "id": "fc-jvmoverloads",
+      "front": {
+        "en": "Java cannot use your Kotlin function's default arguments. What is the fix?",
+        "fr": "Java ne voit pas les arguments par défaut de votre fonction Kotlin. Quel remède ?"
+      },
+      "back": {
+        "en": "Annotate with @JvmOverloads: the compiler generates the telescoping overloads (one per omittable suffix of parameters). Without it, Java callers must supply every argument.",
+        "fr": "Annoter avec @JvmOverloads : le compilateur génère les surcharges télescopiques (une par suffixe omissible de paramètres). Sans elle, les appelants Java doivent tout fournir."
+      }
+    },
+    {
+      "id": "fc-vararg-spread",
+      "front": {
+        "en": "How do you pass an existing array to a vararg parameter, and what is the cost?",
+        "fr": "Comment passer un tableau existant à un paramètre vararg, et à quel coût ?"
+      },
+      "back": {
+        "en": "With the spread operator: f(*array). On the JVM the array is copied at each call. Mixing is allowed: f(first, *rest, last).",
+        "fr": "Avec l'opérateur spread : f(*array). Sur la JVM le tableau est copié à chaque appel. Le mélange est permis : f(first, *rest, last)."
+      }
+    },
+    {
+      "id": "fc-extension-dispatch",
+      "front": {
+        "en": "An extension exists on both Base and Derived. Which runs for `val x: Base = Derived()`?",
+        "fr": "Une extension existe sur Base et sur Derived. Laquelle s'exécute pour `val x: Base = Derived()` ?"
+      },
+      "back": {
+        "en": "The Base one: extensions are resolved statically on the declared (compile-time) type, never virtually on the runtime type. They compile to static functions taking the receiver as first argument.",
+        "fr": "Celle de Base : les extensions sont résolues statiquement sur le type déclaré (à la compilation), jamais virtuellement sur le type réel. Elles compilent en fonctions statiques prenant le récepteur en premier argument."
+      }
+    },
+    {
+      "id": "fc-member-vs-extension",
+      "front": {
+        "en": "A class member and an extension share the same signature. Which one wins?",
+        "fr": "Un membre de classe et une extension ont la même signature. Lequel gagne ?"
+      },
+      "back": {
+        "en": "The member, always. The compiler warns that the extension is shadowed. An extension can only be selected when its signature differs (different parameters).",
+        "fr": "Le membre, toujours. Le compilateur signale que l'extension est masquée. Une extension n'est choisie que si sa signature diffère (paramètres différents)."
+      }
+    },
+    {
+      "id": "fc-nullable-receiver",
+      "front": {
+        "en": "Can an extension function be called on a null value?",
+        "fr": "Une fonction d'extension peut-elle être appelée sur une valeur nulle ?"
+      },
+      "back": {
+        "en": "Yes, if declared on a nullable receiver: fun String?.orEmpty() = this ?: \"\". Inside, this is nullable and must be checked. That is how stdlib helpers like isNullOrEmpty work without a safe call.",
+        "fr": "Oui, si elle est déclarée sur un récepteur nullable : fun String?.orEmpty() = this ?: \"\". À l'intérieur, this est nullable et doit être testé. C'est ainsi que les helpers stdlib comme isNullOrEmpty marchent sans appel sûr."
+      }
+    },
+    {
+      "id": "fc-closure-var",
+      "front": {
+        "en": "Can a Kotlin lambda mutate a local variable of the enclosing function?",
+        "fr": "Une lambda Kotlin peut-elle modifier une variable locale de la fonction englobante ?"
+      },
+      "back": {
+        "en": "Yes, unlike Java's effectively-final rule: a captured var is boxed in a Ref wrapper shared between the function and the lambda. Beware of concurrency: that box is not synchronized.",
+        "fr": "Oui, contrairement à la règle effectively-final de Java : une var capturée est boxée dans un wrapper Ref partagé entre la fonction et la lambda. Attention en concurrence : cette boîte n'est pas synchronisée."
+      }
+    },
+    {
+      "id": "fc-nonlocal-return",
+      "front": {
+        "en": "What does a bare `return` inside a forEach lambda do?",
+        "fr": "Que fait un `return` nu dans une lambda de forEach ?"
+      },
+      "back": {
+        "en": "It returns from the enclosing function (non-local return), allowed because forEach is inline. To skip to the next element only, use return@forEach; to break the whole loop, restructure (e.g. use a for loop or firstOrNull).",
+        "fr": "Il sort de la fonction englobante (retour non-local), permis parce que forEach est inline. Pour passer à l'élément suivant seulement, utilisez return@forEach ; pour interrompre la boucle, restructurez (boucle for ou firstOrNull)."
+      }
+    },
+    {
+      "id": "fc-infix-rules",
+      "front": {
+        "en": "What are the requirements for an infix function?",
+        "fr": "Quelles sont les conditions d'une fonction infix ?"
+      },
+      "back": {
+        "en": "Member or extension function, exactly one parameter, no vararg, no default value. Example: infix fun Int.shl(n: Int). Precedence is lower than arithmetic operators: 1 shl 2 + 3 means 1 shl 5.",
+        "fr": "Fonction membre ou extension, exactement un paramètre, pas de vararg, pas de valeur par défaut. Exemple : infix fun Int.shl(n: Int). Précédence inférieure aux opérateurs arithmétiques : 1 shl 2 + 3 signifie 1 shl 5."
+      }
+    },
+    {
+      "id": "fc-operator-conventions",
+      "front": {
+        "en": "Which operator functions back `a[i]`, `a in b`, `a()` and `val (x, y) = a`?",
+        "fr": "Quelles fonctions opérateur se cachent derrière `a[i]`, `a in b`, `a()` et `val (x, y) = a` ?"
+      },
+      "back": {
+        "en": "get/set for indexing, contains for in, invoke for call syntax, component1/component2 for destructuring. All are operator fun declarations, definable as members or extensions.",
+        "fr": "get/set pour l'indexation, contains pour in, invoke pour la syntaxe d'appel, component1/component2 pour la déstructuration. Toutes sont des operator fun, déclarables en membre ou en extension."
+      }
+    },
+    {
+      "id": "fc-plusassign",
+      "front": {
+        "en": "Why does `val list = mutableListOf(1); list += 2` compile although list is a val?",
+        "fr": "Pourquoi `val list = mutableListOf(1); list += 2` compile alors que list est un val ?"
+      },
+      "back": {
+        "en": "+= first resolves to plusAssign, which MutableList defines as an in-place add: the reference never changes, so val is respected. On a read-only List, += would need plus and reassignment, requiring var.",
+        "fr": "+= se résout d'abord sur plusAssign, que MutableList définit comme un ajout en place : la référence ne change pas, val est respecté. Sur une List en lecture seule, += passerait par plus et une réaffectation, exigeant var."
+      }
+    },
+    {
+      "id": "fc-inline-benefits",
+      "front": {
+        "en": "What does `inline` buy you on a higher-order function?",
+        "fr": "Qu'apporte `inline` sur une fonction d'ordre supérieur ?"
+      },
+      "back": {
+        "en": "The body and lambda arguments are copied to call sites: no lambda object allocation, no virtual call, non-local returns permitted, and reified type parameters become possible. Cost: bytecode growth and a frozen ABI for public functions.",
+        "fr": "Le corps et les lambdas sont copiés aux sites d'appel : aucune allocation de lambda, pas d'appel virtuel, retours non-locaux permis, et paramètres de type reified possibles. Coût : croissance du bytecode et ABI figée pour les fonctions publiques."
+      }
+    },
+    {
+      "id": "fc-noinline-crossinline",
+      "front": {
+        "en": "noinline vs crossinline: when do you need each?",
+        "fr": "noinline vs crossinline : quand utiliser chacun ?"
+      },
+      "back": {
+        "en": "noinline: the lambda must remain a real object (stored in a field, passed to a non-inline function). crossinline: the lambda is invoked from another execution context (nested lambda, Runnable), so non-local returns are forbidden inside it.",
+        "fr": "noinline : la lambda doit rester un vrai objet (stockée dans un champ, passée à une fonction non-inline). crossinline : la lambda est invoquée depuis un autre contexte d'exécution (lambda imbriquée, Runnable), les retours non-locaux y sont donc interdits."
+      }
+    },
+    {
+      "id": "fc-reified",
+      "front": {
+        "en": "What does `reified` require and what does it unlock?",
+        "fr": "Qu'exige `reified` et que débloque-t-il ?"
+      },
+      "back": {
+        "en": "Requires an inline function: the concrete type is substituted where the body is copied. Unlocks T::class, x is T, and type-driven APIs (fromJson<User>(json)) without passing a Class or a TypeToken.",
+        "fr": "Exige une fonction inline : le type concret est substitué là où le corps est copié. Débloque T::class, x is T, et des API pilotées par le type (fromJson<User>(json)) sans passer de Class ni de TypeToken."
+      }
+    }
+  ],
+  "exercises": [
+    {
+      "id": "ex-extension-static",
+      "kind": "predict-output",
+      "difficulty": 2,
+      "prompt": {
+        "en": "What does this program print?",
+        "fr": "Qu'affiche ce programme ?"
+      },
+      "code": "open class Animal\nclass Dog : Animal()\n\nfun Animal.sound() = \"...\"\nfun Dog.sound() = \"woof\"\n\nfun main() {\n    val a: Animal = Dog()\n    val d: Dog = Dog()\n    println(a.sound())\n    println(d.sound())\n}",
+      "choices": [
+        { "id": "a", "label": { "en": "woof / woof", "fr": "woof / woof" } },
+        { "id": "b", "label": { "en": "... / woof", "fr": "... / woof" } },
+        { "id": "c", "label": { "en": "... / ...", "fr": "... / ..." } },
+        {
+          "id": "d",
+          "label": {
+            "en": "It does not compile: duplicate function",
+            "fr": "Ne compile pas : fonction dupliquée"
+          }
+        }
+      ],
+      "answerId": "b",
+      "explanation": {
+        "en": "Extensions dispatch on the static type of the expression, not the runtime type. `a` is declared Animal, so Animal.sound() runs even though the object is a Dog. `d` is declared Dog and gets the Dog extension. Members would dispatch virtually; extensions never do.",
+        "fr": "Les extensions se résolvent sur le type statique de l'expression, pas le type réel. `a` est déclaré Animal, donc Animal.sound() s'exécute bien que l'objet soit un Dog. `d` est déclaré Dog et prend l'extension Dog. Les membres seraient dispatchés virtuellement ; les extensions jamais."
+      }
+    },
+    {
+      "id": "ex-nonlocal-return",
+      "kind": "predict-output",
+      "difficulty": 2,
+      "prompt": {
+        "en": "What does this program print?",
+        "fr": "Qu'affiche ce programme ?"
+      },
+      "code": "fun findFirstEven(nums: List<Int>): String {\n    nums.forEach {\n        if (it % 2 == 0) return \"found $it\"\n        println(\"checked $it\")\n    }\n    return \"none\"\n}\n\nfun main() {\n    println(findFirstEven(listOf(1, 4, 6)))\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "checked 1 / found 4",
+            "fr": "checked 1 / found 4"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "checked 1 / checked 4 / checked 6 / none",
+            "fr": "checked 1 / checked 4 / checked 6 / none"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "found 4",
+            "fr": "found 4"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "It does not compile: return not allowed in a lambda",
+            "fr": "Ne compile pas : return interdit dans une lambda"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "forEach is inline, so the bare return is a non-local return that exits findFirstEven immediately. 1 is odd: \"checked 1\" prints. 4 is even: the function returns \"found 4\" and 6 is never visited. main prints that result.",
+        "fr": "forEach est inline, le return nu est donc un retour non-local qui sort immédiatement de findFirstEven. 1 est impair : \"checked 1\" s'affiche. 4 est pair : la fonction renvoie \"found 4\" et 6 n'est jamais visité. main affiche ce résultat."
+      }
+    },
+    {
+      "id": "ex-infix-precedence",
+      "kind": "predict-output",
+      "difficulty": 3,
+      "prompt": {
+        "en": "What does this program print?",
+        "fr": "Qu'affiche ce programme ?"
+      },
+      "code": "fun main() {\n    println(1 shl 2 + 1)\n    println((1 shl 2) + 1)\n    println(1 + 2 shl 1)\n}",
+      "choices": [
+        { "id": "a", "label": { "en": "5 / 5 / 5", "fr": "5 / 5 / 5" } },
+        { "id": "b", "label": { "en": "8 / 5 / 6", "fr": "8 / 5 / 6" } },
+        { "id": "c", "label": { "en": "8 / 5 / 4", "fr": "8 / 5 / 4" } },
+        { "id": "d", "label": { "en": "5 / 8 / 6", "fr": "5 / 8 / 6" } }
+      ],
+      "answerId": "b",
+      "explanation": {
+        "en": "Infix calls bind looser than arithmetic. Line 1: 1 shl (2 + 1) = 1 shl 3 = 8. Line 2: parentheses force (1 shl 2) + 1 = 5. Line 3: (1 + 2) shl 1 = 3 shl 1 = 6. A classic bit-twiddling trap.",
+        "fr": "Les appels infix lient moins fort que l'arithmétique. Ligne 1 : 1 shl (2 + 1) = 1 shl 3 = 8. Ligne 2 : les parenthèses forcent (1 shl 2) + 1 = 5. Ligne 3 : (1 + 2) shl 1 = 3 shl 1 = 6. Piège classique de manipulation de bits."
+      }
+    },
+    {
+      "id": "ex-reified-noinline",
+      "kind": "find-bug",
+      "difficulty": 2,
+      "prompt": {
+        "en": "This utility does not compile. Why?",
+        "fr": "Cet utilitaire ne compile pas. Pourquoi ?"
+      },
+      "code": "fun <T> filterByType(items: List<Any>): List<T> =\n    items.filter { it is T }.map { it as T }",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "filter cannot be combined with map on a List",
+            "fr": "filter ne peut pas être combiné à map sur une List"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "T is erased at runtime: `it is T` needs a reified type parameter, so the function must be inline with <reified T>",
+            "fr": "T est effacé à l'exécution : `it is T` exige un paramètre de type reified, la fonction doit être inline avec <reified T>"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "List<Any> cannot contain mixed types",
+            "fr": "List<Any> ne peut pas contenir de types mélangés"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "The return type must be MutableList<T>",
+            "fr": "Le type de retour doit être MutableList<T>"
+          }
+        }
+      ],
+      "answerId": "b",
+      "explanation": {
+        "en": "JVM generics are erased: at runtime there is no T to check against, so `it is T` is rejected. Declare inline fun <reified T> filterByType(...): the body is copied at call sites with the concrete type substituted. The stdlib already ships this as filterIsInstance<T>().",
+        "fr": "Les génériques JVM sont effacés : à l'exécution il n'y a pas de T à tester, `it is T` est rejeté. Déclarez inline fun <reified T> filterByType(...) : le corps est copié aux sites d'appel avec le type concret substitué. La stdlib le fournit déjà : filterIsInstance<T>()."
+      }
+    },
+    {
+      "id": "ex-closure-capture",
+      "kind": "predict-output",
+      "difficulty": 1,
+      "prompt": {
+        "en": "What does this program print?",
+        "fr": "Qu'affiche ce programme ?"
+      },
+      "code": "fun main() {\n    var count = 0\n    val actions = List(3) { i -> { count += i } }\n    actions.forEach { it() }\n    println(count)\n}",
+      "choices": [
+        { "id": "a", "label": { "en": "0", "fr": "0" } },
+        { "id": "b", "label": { "en": "3", "fr": "3" } },
+        { "id": "c", "label": { "en": "6", "fr": "6" } },
+        {
+          "id": "d",
+          "label": {
+            "en": "It does not compile: lambdas cannot mutate count",
+            "fr": "Ne compile pas : les lambdas ne peuvent pas modifier count"
+          }
+        }
+      ],
+      "answerId": "b",
+      "explanation": {
+        "en": "Kotlin lambdas may capture and mutate vars (the variable is boxed in a shared Ref). Three lambdas are created with i = 0, 1, 2; running them adds 0 + 1 + 2 = 3. In Java this would not compile; in Kotlin it is routine.",
+        "fr": "Les lambdas Kotlin peuvent capturer et modifier des var (la variable est boxée dans un Ref partagé). Trois lambdas sont créées avec i = 0, 1, 2 ; les exécuter ajoute 0 + 1 + 2 = 3. En Java cela ne compilerait pas ; en Kotlin c'est courant."
+      }
+    },
+    {
+      "id": "ex-member-shadow",
+      "kind": "mcq",
+      "difficulty": 2,
+      "prompt": {
+        "en": "A library class has `fun render(): String` and you declare `fun Widget.render(): String` with a better implementation. What happens at call sites?",
+        "fr": "Une classe de bibliothèque a `fun render(): String` et vous déclarez `fun Widget.render(): String` avec une meilleure implémentation. Que se passe-t-il aux sites d'appel ?"
+      },
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "Your extension wins because it is more recent",
+            "fr": "Votre extension gagne car plus récente"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "The member always wins; your extension is silently shadowed (the compiler warns at its declaration)",
+            "fr": "Le membre gagne toujours ; votre extension est masquée (le compilateur avertit à sa déclaration)"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "Compilation fails with an ambiguity error",
+            "fr": "La compilation échoue avec une erreur d'ambiguïté"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "The extension wins inside your module, the member elsewhere",
+            "fr": "L'extension gagne dans votre module, le membre ailleurs"
+          }
+        }
+      ],
+      "answerId": "b",
+      "explanation": {
+        "en": "Member resolution has absolute priority over extensions with the same signature, everywhere. The compiler emits a shadowed-extension warning where you declare it. To offer a different behavior, give the extension a distinct name or signature.",
+        "fr": "La résolution des membres a une priorité absolue sur les extensions de même signature, partout. Le compilateur émet un avertissement d'extension masquée à la déclaration. Pour offrir un autre comportement, donnez à l'extension un nom ou une signature distincts."
+      }
+    },
+    {
+      "id": "ex-vararg-named",
+      "kind": "mcq",
+      "difficulty": 1,
+      "prompt": {
+        "en": "Given `fun tag(name: String, vararg classes: String, id: String? = null)`, which call is INVALID?",
+        "fr": "Soit `fun tag(name: String, vararg classes: String, id: String? = null)`, quel appel est INVALIDE ?"
+      },
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "tag(\"div\", \"card\", \"wide\", id = \"main\")",
+            "fr": "tag(\"div\", \"card\", \"wide\", id = \"main\")"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "tag(\"div\", *arrayOf(\"card\"), id = \"main\")",
+            "fr": "tag(\"div\", *arrayOf(\"card\"), id = \"main\")"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "tag(\"div\", \"card\", \"main\")",
+            "fr": "tag(\"div\", \"card\", \"main\")"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "tag(\"div\", \"card\", \"wide\", \"main\") where \"main\" is meant as the id",
+            "fr": "tag(\"div\", \"card\", \"wide\", \"main\") où \"main\" est censé être l'id"
+          }
+        }
+      ],
+      "answerId": "d",
+      "explanation": {
+        "en": "Positional arguments after a vararg are swallowed by the vararg: \"main\" becomes a CSS class, not the id. Parameters declared after a vararg are reachable only by name (id = \"main\"). Calls a, b and c are all legal; c simply passes three classes and no id.",
+        "fr": "Les arguments positionnels après un vararg sont absorbés par le vararg : \"main\" devient une classe CSS, pas l'id. Les paramètres déclarés après un vararg ne sont accessibles que par nom (id = \"main\"). Les appels a, b et c sont légaux ; c passe simplement trois classes et aucun id."
+      }
+    }
+  ]
+}
