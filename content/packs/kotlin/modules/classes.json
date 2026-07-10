@@ -1,0 +1,657 @@
+{
+  "id": "classes",
+  "title": { "en": "Classes & objects", "fr": "Classes & objets" },
+  "tagline": {
+    "en": "Data, sealed, delegation, value classes",
+    "fr": "Data, sealed, délégation, value classes"
+  },
+  "icon": "🏛️",
+  "lessons": [
+    {
+      "id": "constructors-properties",
+      "title": {
+        "en": "Constructors, init order & properties",
+        "fr": "Constructeurs, ordre d'init & propriétés"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "The primary constructor lives in the class header; `val`/`var` parameters become properties. Initialization runs top to bottom: property initializers and `init` blocks in declaration order, then the secondary constructor body if one was called. Secondary constructors must delegate to the primary with `this(...)`.",
+            "fr": "Le constructeur primaire vit dans l'en-tête de la classe ; les paramètres `val`/`var` deviennent des propriétés. L'initialisation s'exécute de haut en bas : initialiseurs de propriétés et blocs `init` dans l'ordre de déclaration, puis le corps du constructeur secondaire s'il a été appelé. Les constructeurs secondaires doivent déléguer au primaire avec `this(...)`."
+          }
+        },
+        {
+          "type": "code",
+          "code": "class Account(val owner: String) {\n    val id = nextId()            // 1st\n    init { require(owner.isNotBlank()) }  // 2nd\n    val label = \"$owner#$id\"     // 3rd, sees id\n    constructor(owner: String, tag: String) : this(owner) {\n        // runs last\n    }\n}"
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Custom accessors use the `field` keyword to reach the backing field; a backing field exists only if the default accessor is used or `field` is referenced. Visibility modifiers: public (default), internal (module), protected (subclasses), private. A property can have a more restrictive setter: `var state: State = Idle; private set`.",
+            "fr": "Les accesseurs personnalisés utilisent le mot-clé `field` pour atteindre le backing field ; celui-ci n'existe que si l'accesseur par défaut est utilisé ou si `field` est référencé. Visibilités : public (défaut), internal (module), protected (sous-classes), private. Une propriété peut avoir un setter plus restrictif : `var state: State = Idle; private set`."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "Calling an open member from a constructor or init block executes the override in the subclass BEFORE the subclass is initialized: its properties still hold default values. The compiler warns (\"calling non-final function in constructor\"); take the warning seriously.",
+            "fr": "Appeler un membre open depuis un constructeur ou un bloc init exécute l'override de la sous-classe AVANT son initialisation : ses propriétés contiennent encore les valeurs par défaut. Le compilateur avertit (\"calling non-final function in constructor\") ; prenez cet avertissement au sérieux."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Kotlin classes are final by default; opt in to inheritance with `open`. Prefer composition or sealed hierarchies: accidental subclassing is a maintenance tax the default protects you from.",
+            "fr": "Les classes Kotlin sont final par défaut ; l'héritage s'active avec `open`. Préférez la composition ou les hiérarchies sealed : le sous-classage accidentel est une taxe de maintenance dont le défaut vous protège."
+          }
+        }
+      ]
+    },
+    {
+      "id": "data-classes",
+      "title": { "en": "Data classes", "fr": "Data classes" },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "A `data class` generates equals, hashCode, toString, copy and componentN from the properties of the PRIMARY CONSTRUCTOR only. Properties declared in the body are carried by the object but ignored by all generated members: two instances differing only by a body property are equal.",
+            "fr": "Une `data class` génère equals, hashCode, toString, copy et componentN à partir des propriétés du CONSTRUCTEUR PRIMAIRE uniquement. Les propriétés déclarées dans le corps existent sur l'objet mais sont ignorées par tous les membres générés : deux instances ne différant que par une propriété du corps sont égales."
+          }
+        },
+        {
+          "type": "code",
+          "code": "data class User(val id: Long, val email: String) {\n    var lastSeen: Instant? = null   // ignored by equals/copy/toString\n}\n\nval u2 = u1.copy(email = \"new@mail.dev\") // lastSeen NOT copied",
+          "caption": {
+            "en": "copy() calls the primary constructor: body properties restart from their defaults.",
+            "fr": "copy() appelle le constructeur primaire : les propriétés du corps repartent de leurs valeurs par défaut."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "copy() is shallow: referenced objects are shared, and a mutable property in the copy still points to the same list or map as the original. Data classes with `Array` properties are a second trap: arrays use identity equals, so two structurally equal instances stop being equal. Prefer List, or override equals/hashCode with contentEquals.",
+            "fr": "copy() est superficiel : les objets référencés sont partagés, une propriété mutable de la copie pointe toujours vers la même liste ou map que l'original. Les data classes avec des propriétés `Array` sont un second piège : les tableaux comparent par identité, deux instances structurellement égales cessent d'être égales. Préférez List, ou surchargez equals/hashCode avec contentEquals."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Requirements: at least one primary constructor parameter, all of them val or var; the class cannot be abstract, open, sealed or inner. Inheriting from a data class is forbidden, and a data class extending a class with its own equals leads to asymmetric equality; keep data classes as leaves.",
+            "fr": "Contraintes : au moins un paramètre au constructeur primaire, tous val ou var ; la classe ne peut pas être abstract, open, sealed ni inner. Hériter d'une data class est interdit, et une data class étendant une classe avec son propre equals crée une égalité asymétrique ; gardez les data classes en feuilles de hiérarchie."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "For value semantics with controlled construction, pair a data class with a private constructor and a companion factory: copy() bypasses validation, so validate in init instead.",
+            "fr": "Pour une sémantique de valeur avec construction contrôlée, associez data class, constructeur privé et factory de companion : copy() contourne la validation, validez donc dans init."
+          }
+        }
+      ]
+    },
+    {
+      "id": "sealed-hierarchies",
+      "title": {
+        "en": "Sealed classes & interfaces",
+        "fr": "Sealed classes & interfaces"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "A `sealed` type has a closed set of direct subtypes, all known at compile time: subclasses must live in the same package and module. `when` over a sealed hierarchy is exhaustive without else, and the compiler errors as soon as a new subtype appears: the type system enforces your refactors.",
+            "fr": "Un type `sealed` a un ensemble fermé de sous-types directs, tous connus à la compilation : les sous-classes doivent vivre dans le même package et module. `when` sur une hiérarchie sealed est exhaustif sans else, et le compilateur signale toute nouvelle sous-classe : le système de types impose vos refactorings."
+          }
+        },
+        {
+          "type": "code",
+          "code": "sealed interface PaymentResult\ndata class Approved(val txId: String) : PaymentResult\ndata class Declined(val reason: String) : PaymentResult\ndata object Pending : PaymentResult\n\nfun handle(r: PaymentResult) = when (r) {\n    is Approved -> ship(r.txId)\n    is Declined -> notify(r.reason)\n    Pending     -> retryLater()\n} // no else: adding a subtype breaks this when, on purpose",
+          "caption": {
+            "en": "data object (Kotlin 1.9+) gives singletons a proper toString and equals.",
+            "fr": "data object (Kotlin 1.9+) donne aux singletons un toString et un equals corrects."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Sealed vs enum: an enum has a fixed set of INSTANCES sharing one shape; a sealed hierarchy has a fixed set of TYPES, each carrying its own data. Model states with payloads as sealed, closed sets of constants as enum. Sealed interfaces (1.5+) allow a subtype to implement several sealed contracts.",
+            "fr": "Sealed vs enum : un enum a un ensemble fixe d'INSTANCES partageant une même forme ; une hiérarchie sealed a un ensemble fixe de TYPES, chacun portant ses données. Modélisez les états avec données en sealed, les ensembles fermés de constantes en enum. Les sealed interfaces (1.5+) permettent à un sous-type d'implémenter plusieurs contrats sealed."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "when is only exhaustiveness-checked when used AS AN EXPRESSION (its value consumed). A when used as a statement compiles with missing branches, silently. Since Kotlin 1.7 sealed statements produce a warning, and you can make it an error; or consume the value (assign, return) to force the check.",
+            "fr": "when n'est vérifié exhaustivement que s'il est utilisé COMME EXPRESSION (valeur consommée). Un when en instruction compile avec des branches manquantes, silencieusement. Depuis Kotlin 1.7 les statements sur sealed produisent un warning, transformable en erreur ; ou consommez la valeur (affectation, return) pour forcer la vérification."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Nested subclasses inside the sealed parent give call sites a namespace: PaymentResult.Approved reads better in a public API and keeps the package tidy.",
+            "fr": "Imbriquer les sous-classes dans le parent sealed offre un espace de noms aux sites d'appel : PaymentResult.Approved se lit mieux dans une API publique et garde le package rangé."
+          }
+        }
+      ]
+    },
+    {
+      "id": "objects-companions",
+      "title": {
+        "en": "object, companion & singletons",
+        "fr": "object, companion & singletons"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "`object` declares a thread-safe lazy singleton: initialized on first access, by the JVM class-loading machinery, no locks to write. An `object` can implement interfaces and extend classes. `object : Runnable { ... }` (object expression) creates an anonymous instance, the Kotlin answer to anonymous inner classes, and it can capture locals.",
+            "fr": "`object` déclare un singleton paresseux et thread-safe : initialisé au premier accès par le mécanisme de chargement de classes de la JVM, sans verrou à écrire. Un `object` peut implémenter des interfaces et étendre des classes. `object : Runnable { ... }` (object expression) crée une instance anonyme, la réponse Kotlin aux classes internes anonymes, capable de capturer des variables locales."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "A `companion object` is a singleton attached to a class: the place for factories and constants. Members are called through the class name (`User.of(...)`). From Java they appear on User.Companion unless annotated @JvmStatic (methods) or the value is a @JvmField/const (fields). A companion can implement interfaces, enabling patterns like a factory interface implemented per type.",
+            "fr": "Un `companion object` est un singleton attaché à une classe : l'endroit des factories et constantes. Ses membres s'appellent via le nom de la classe (`User.of(...)`). Depuis Java ils apparaissent sur User.Companion sauf annotation @JvmStatic (méthodes) ou @JvmField/const (champs). Un companion peut implémenter des interfaces, permettant par exemple une interface de factory implémentée par type."
+          }
+        },
+        {
+          "type": "code",
+          "code": "class Temperature private constructor(val kelvin: Double) {\n    companion object {\n        fun fromCelsius(c: Double) = Temperature(c + 273.15)\n        fun fromFahrenheit(f: Double) = fromCelsius((f - 32) / 1.8)\n    }\n}",
+          "caption": {
+            "en": "Private constructor + companion factories: named, validated construction paths.",
+            "fr": "Constructeur privé + factories de companion : des chemins de construction nommés et validés."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "Companion initialization follows the enclosing class's static init: touching any static member of the class initializes the companion too. Heavy companion initializers can thus run earlier than expected, and deadlocks are possible if two class initializers wait on each other across threads.",
+            "fr": "L'initialisation du companion suit l'init statique de la classe englobante : toucher n'importe quel membre statique initialise aussi le companion. Un initialiseur de companion lourd peut donc s'exécuter plus tôt que prévu, et des interblocages sont possibles si deux initialiseurs de classes s'attendent mutuellement entre threads."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Top-level functions and properties often beat a namespace-only object: they compile to statics, import cleanly, and avoid the Utils-class smell. Reach for object when you need state or an interface implementation.",
+            "fr": "Fonctions et propriétés top-level battent souvent un object purement espace de noms : elles compilent en statiques, s'importent proprement et évitent l'odeur de classe Utils. Prenez object quand il faut de l'état ou implémenter une interface."
+          }
+        }
+      ]
+    },
+    {
+      "id": "delegation-value-classes",
+      "title": {
+        "en": "Class delegation & value classes",
+        "fr": "Délégation de classe & value classes"
+      },
+      "minutes": 5,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "Class delegation (`class Wrapper(inner: List<T>) : List<T> by inner`) generates all interface members forwarding to the delegate; override only what you need. Composition with inheritance-level ergonomics, and the compiler maintains the boilerplate.",
+            "fr": "La délégation de classe (`class Wrapper(inner: List<T>) : List<T> by inner`) génère tous les membres de l'interface en les transférant au délégué ; ne surchargez que le nécessaire. La composition avec l'ergonomie de l'héritage, et le compilateur maintient le boilerplate."
+          }
+        },
+        {
+          "type": "code",
+          "code": "class CountingList<T>(\n    private val inner: MutableList<T> = mutableListOf()\n) : MutableList<T> by inner {\n    var adds = 0; private set\n    override fun add(element: T): Boolean {\n        adds++\n        return inner.add(element)\n    }\n}"
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "The delegate does not know about your overrides: if the interface's other methods internally call add() ON THE DELEGATE (like addAll often does), your override is bypassed and the counter misses. Delegation forwards calls; it does not intercept the delegate's self-calls.",
+            "fr": "Le délégué ignore vos overrides : si d'autres méthodes de l'interface appellent add() SUR LE DÉLÉGUÉ en interne (comme addAll le fait souvent), votre override est contourné et le compteur rate des ajouts. La délégation transfère les appels ; elle n'intercepte pas les auto-appels du délégué."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "`@JvmInline value class UserId(val value: Long)` wraps exactly one value with zero allocation in the happy path: the compiler passes the underlying Long around. Boxing happens when the value class is used as a nullable type, a generic argument, or through an interface it implements. Value classes get type-safety for identifiers without the wrapper cost.",
+            "fr": "`@JvmInline value class UserId(val value: Long)` enveloppe exactement une valeur avec zéro allocation dans le cas nominal : le compilateur fait circuler le Long sous-jacent. Le boxing survient quand la value class est utilisée en type nullable, en argument générique, ou via une interface qu'elle implémente. Les value classes offrent la sûreté de type des identifiants sans le coût du wrapper."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Value classes shine at API boundaries: sendEmail(to: EmailAddress, from: EmailAddress) makes argument swaps impossible, while the JVM still sees two Strings. Validate in init and invalid values cannot exist.",
+            "fr": "Les value classes brillent aux frontières d'API : sendEmail(to: EmailAddress, from: EmailAddress) rend l'inversion d'arguments impossible, alors que la JVM ne voit que deux String. Validez dans init et les valeurs invalides ne peuvent pas exister."
+          }
+        }
+      ]
+    }
+  ],
+  "flashcards": [
+    {
+      "id": "fc-init-order",
+      "front": {
+        "en": "In what order do property initializers, init blocks and secondary constructors run?",
+        "fr": "Dans quel ordre s'exécutent initialiseurs de propriétés, blocs init et constructeurs secondaires ?"
+      },
+      "back": {
+        "en": "Primary constructor first, then property initializers and init blocks interleaved in declaration order (top to bottom), then the secondary constructor body. A property initializer can only read properties declared above it.",
+        "fr": "Constructeur primaire d'abord, puis initialiseurs de propriétés et blocs init entrelacés dans l'ordre de déclaration (haut vers bas), puis le corps du constructeur secondaire. Un initialiseur ne peut lire que les propriétés déclarées au-dessus."
+      }
+    },
+    {
+      "id": "fc-data-generated",
+      "front": {
+        "en": "Which properties feed a data class's generated equals/hashCode/toString/copy?",
+        "fr": "Quelles propriétés alimentent les equals/hashCode/toString/copy générés d'une data class ?"
+      },
+      "back": {
+        "en": "Only the primary constructor's val/var parameters. Properties declared in the class body are excluded from all generated members: invisible to equality, missing from toString, reset by copy().",
+        "fr": "Uniquement les paramètres val/var du constructeur primaire. Les propriétés du corps sont exclues de tous les membres générés : invisibles pour l'égalité, absentes du toString, réinitialisées par copy()."
+      }
+    },
+    {
+      "id": "fc-copy-shallow",
+      "front": {
+        "en": "What does copy() actually copy?",
+        "fr": "Que copie réellement copy() ?"
+      },
+      "back": {
+        "en": "It calls the primary constructor with the current values, replaced by any named overrides: a shallow copy. Referenced objects (lists, maps, nested classes) are shared with the original. copy() also bypasses any factory validation, so validate in init.",
+        "fr": "Il appelle le constructeur primaire avec les valeurs courantes, remplacées par les overrides nommés : une copie superficielle. Les objets référencés (listes, maps, classes imbriquées) sont partagés avec l'original. copy() contourne aussi les validations de factory, validez donc dans init."
+      }
+    },
+    {
+      "id": "fc-data-array",
+      "front": {
+        "en": "Why are Array properties dangerous in a data class?",
+        "fr": "Pourquoi les propriétés Array sont-elles dangereuses dans une data class ?"
+      },
+      "back": {
+        "en": "Generated equals/hashCode call the array's own equals, which is identity-based: two instances with equal contents are not equal. Use List instead, or hand-write equals/hashCode with contentEquals/contentHashCode.",
+        "fr": "Les equals/hashCode générés appellent l'equals du tableau, basé sur l'identité : deux instances au contenu égal ne sont pas égales. Utilisez List, ou écrivez equals/hashCode à la main avec contentEquals/contentHashCode."
+      }
+    },
+    {
+      "id": "fc-sealed-rules",
+      "front": {
+        "en": "Where may direct subtypes of a sealed type be declared?",
+        "fr": "Où les sous-types directs d'un type sealed peuvent-ils être déclarés ?"
+      },
+      "back": {
+        "en": "In the same package and the same module (since Kotlin 1.5; before that, same file). Indirect descendants are unconstrained unless themselves sealed. This is what lets the compiler enumerate the hierarchy for exhaustive when.",
+        "fr": "Dans le même package et le même module (depuis Kotlin 1.5 ; avant, même fichier). Les descendants indirects sont libres sauf s'ils sont eux-mêmes sealed. C'est ce qui permet au compilateur d'énumérer la hiérarchie pour un when exhaustif."
+      }
+    },
+    {
+      "id": "fc-sealed-vs-enum",
+      "front": {
+        "en": "Enum or sealed hierarchy: how do you choose?",
+        "fr": "Enum ou hiérarchie sealed : comment choisir ?"
+      },
+      "back": {
+        "en": "Enum: fixed set of instances, same shape, iterable via entries. Sealed: fixed set of types, each with its own data and behavior. States carrying payloads (Loading, Success(data), Error(cause)) are sealed; closed constant sets (weekdays) are enums.",
+        "fr": "Enum : ensemble fixe d'instances, même forme, itérable via entries. Sealed : ensemble fixe de types, chacun avec ses données et son comportement. Les états porteurs de données (Loading, Success(data), Error(cause)) sont sealed ; les ensembles fermés de constantes (jours) sont des enums."
+      }
+    },
+    {
+      "id": "fc-when-exhaustive",
+      "front": {
+        "en": "When is a `when` over a sealed type checked for exhaustiveness?",
+        "fr": "Quand un `when` sur un type sealed est-il vérifié exhaustif ?"
+      },
+      "back": {
+        "en": "When used as an expression (value consumed): missing branches are a compile error. As a statement it historically compiled silently; modern Kotlin warns and moves toward erroring. Consuming the result is the reliable way to force the check.",
+        "fr": "Quand il est utilisé comme expression (valeur consommée) : les branches manquantes sont une erreur de compilation. En instruction, il compilait historiquement en silence ; le Kotlin moderne avertit et évolue vers l'erreur. Consommer le résultat force la vérification de façon fiable."
+      }
+    },
+    {
+      "id": "fc-object-singleton",
+      "front": {
+        "en": "What guarantees does an `object` declaration give about initialization?",
+        "fr": "Quelles garanties d'initialisation donne une déclaration `object` ?"
+      },
+      "back": {
+        "en": "Lazy (first access) and thread-safe, courtesy of JVM class initialization: no double-checked locking to write. data object (1.9+) adds a readable toString and structural equals for use in sealed hierarchies.",
+        "fr": "Paresseuse (premier accès) et thread-safe, grâce à l'initialisation de classes de la JVM : aucun double-checked locking à écrire. data object (1.9+) ajoute un toString lisible et un equals structurel pour les hiérarchies sealed."
+      }
+    },
+    {
+      "id": "fc-companion-java",
+      "front": {
+        "en": "How does Java see the members of a companion object?",
+        "fr": "Comment Java voit-il les membres d'un companion object ?"
+      },
+      "back": {
+        "en": "On the Companion instance: User.Companion.of(...). Annotate methods with @JvmStatic to also generate real statics (User.of(...)); expose constants with const val or @JvmField. Kotlin callers see no difference.",
+        "fr": "Sur l'instance Companion : User.Companion.of(...). Annotez les méthodes @JvmStatic pour générer aussi de vrais statiques (User.of(...)) ; exposez les constantes avec const val ou @JvmField. Les appelants Kotlin ne voient aucune différence."
+      }
+    },
+    {
+      "id": "fc-class-delegation",
+      "front": {
+        "en": "What does `class C(d: Api) : Api by d` generate, and what is its blind spot?",
+        "fr": "Que génère `class C(d: Api) : Api by d`, et quel est son angle mort ?"
+      },
+      "back": {
+        "en": "Forwarding implementations of every Api member to d, minus the ones you override. Blind spot: the delegate's internal self-calls do not go through your overrides, so overriding add() will not see calls addAll() makes internally on the delegate.",
+        "fr": "Des implémentations de tous les membres d'Api transférant vers d, sauf celles que vous surchargez. Angle mort : les auto-appels internes du délégué ne passent pas par vos overrides, surcharger add() ne voit pas les appels qu'addAll() fait en interne sur le délégué."
+      }
+    },
+    {
+      "id": "fc-value-class",
+      "front": {
+        "en": "When does a value class get boxed?",
+        "fr": "Quand une value class est-elle boxée ?"
+      },
+      "back": {
+        "en": "When used as a nullable type (UserId?), as a generic type argument (List<UserId>), or through an interface it implements. Elsewhere the compiler passes the underlying value directly, so the wrapper costs nothing in signatures and locals.",
+        "fr": "Quand elle est utilisée en type nullable (UserId?), en argument générique (List<UserId>), ou via une interface qu'elle implémente. Ailleurs le compilateur fait circuler la valeur sous-jacente directement, le wrapper ne coûte rien en signatures et variables locales."
+      }
+    },
+    {
+      "id": "fc-backing-field",
+      "front": {
+        "en": "What is `field` inside a property accessor and when does a backing field exist?",
+        "fr": "Qu'est-ce que `field` dans un accesseur et quand un backing field existe-t-il ?"
+      },
+      "back": {
+        "en": "The identifier for the property's backing field, usable only inside its accessors. The backing field is generated when the property uses a default accessor or references field; a val whose getter computes from other state has none.",
+        "fr": "L'identifiant du backing field de la propriété, utilisable uniquement dans ses accesseurs. Le backing field est généré si la propriété utilise un accesseur par défaut ou référence field ; un val dont le getter calcule depuis un autre état n'en a pas."
+      }
+    },
+    {
+      "id": "fc-open-in-ctor",
+      "front": {
+        "en": "Why is calling an open function from a constructor dangerous?",
+        "fr": "Pourquoi appeler une fonction open depuis un constructeur est-il dangereux ?"
+      },
+      "back": {
+        "en": "The subclass override runs before the subclass's own initialization: its properties are still null/0/false. Classic source of impossible NPEs on non-nullable properties. The compiler warns; restructure with factory functions or abstract val instead.",
+        "fr": "L'override de la sous-classe s'exécute avant l'initialisation de celle-ci : ses propriétés valent encore null/0/false. Source classique de NPE impossibles sur des propriétés non-nulles. Le compilateur avertit ; restructurez avec des factories ou un abstract val."
+      }
+    }
+  ],
+  "exercises": [
+    {
+      "id": "ex-data-body-prop",
+      "kind": "predict-output",
+      "difficulty": 2,
+      "prompt": {
+        "en": "What does this program print?",
+        "fr": "Qu'affiche ce programme ?"
+      },
+      "code": "data class Task(val id: Int) {\n    var done: Boolean = false\n}\n\nfun main() {\n    val a = Task(1).apply { done = true }\n    val b = Task(1)\n    println(a == b)\n    println(a.copy().done)\n}",
+      "choices": [
+        { "id": "a", "label": { "en": "false / true", "fr": "false / true" } },
+        { "id": "b", "label": { "en": "true / false", "fr": "true / false" } },
+        { "id": "c", "label": { "en": "true / true", "fr": "true / true" } },
+        { "id": "d", "label": { "en": "false / false", "fr": "false / false" } }
+      ],
+      "answerId": "b",
+      "explanation": {
+        "en": "done is declared in the body, so the generated equals ignores it: a == b compares only id and is true. copy() calls the primary constructor: the new Task starts with done = false regardless of the original. Body properties are invisible to every generated member.",
+        "fr": "done est déclarée dans le corps, l'equals généré l'ignore : a == b ne compare que id et vaut true. copy() appelle le constructeur primaire : la nouvelle Task démarre avec done = false quel que soit l'original. Les propriétés du corps sont invisibles pour tous les membres générés."
+      }
+    },
+    {
+      "id": "ex-data-array",
+      "kind": "find-bug",
+      "difficulty": 2,
+      "prompt": {
+        "en": "This cache lookup never hits. What is wrong?",
+        "fr": "Ce cache ne trouve jamais rien. Quel est le problème ?"
+      },
+      "code": "data class Fingerprint(val bytes: ByteArray)\n\nval cache = mutableMapOf<Fingerprint, Result>()\n\nfun lookup(bytes: ByteArray): Result? =\n    cache[Fingerprint(bytes)]   // always null, even for known bytes",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "mutableMapOf cannot use data classes as keys",
+            "fr": "mutableMapOf n'accepte pas les data classes comme clés"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "ByteArray equals/hashCode are identity-based, so the generated data class equality compares references: a fresh Fingerprint never matches a stored one",
+            "fr": "equals/hashCode de ByteArray sont basés sur l'identité, l'égalité générée compare donc des références : un Fingerprint neuf ne correspond jamais à un stocké"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "The map must be a HashMap, not a LinkedHashMap",
+            "fr": "La map doit être une HashMap, pas une LinkedHashMap"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "lookup must use getOrDefault instead of indexing",
+            "fr": "lookup doit utiliser getOrDefault au lieu de l'indexation"
+          }
+        }
+      ],
+      "answerId": "b",
+      "explanation": {
+        "en": "Arrays inherit identity equals from java.lang.Object, and the data class's generated members just call them. Every lookup allocates a new ByteArray, so hashCode differs and the entry is unreachable. Fix: store List<Byte> or a String key, or override equals/hashCode with contentEquals/contentHashCode.",
+        "fr": "Les tableaux héritent de l'equals par identité de java.lang.Object, et les membres générés de la data class ne font que l'appeler. Chaque lookup alloue un nouveau ByteArray, le hashCode diffère et l'entrée est inatteignable. Correctif : stocker List<Byte> ou une clé String, ou surcharger equals/hashCode avec contentEquals/contentHashCode."
+      }
+    },
+    {
+      "id": "ex-init-order",
+      "kind": "predict-output",
+      "difficulty": 3,
+      "prompt": {
+        "en": "What does constructing Derived() print?",
+        "fr": "Qu'affiche la construction de Derived() ?"
+      },
+      "code": "open class Base {\n    open val label: String = \"base\"\n    init { println(\"Base init: $label\") }\n}\n\nclass Derived : Base() {\n    override val label: String = \"derived\"\n    init { println(\"Derived init: $label\") }\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "Base init: base / Derived init: derived",
+            "fr": "Base init: base / Derived init: derived"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "Base init: derived / Derived init: derived",
+            "fr": "Base init: derived / Derived init: derived"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "Base init: null / Derived init: derived",
+            "fr": "Base init: null / Derived init: derived"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "Derived init: derived / Base init: base",
+            "fr": "Derived init: derived / Base init: base"
+          }
+        }
+      ],
+      "answerId": "c",
+      "explanation": {
+        "en": "Base's init runs before Derived's initializers. Reading label dispatches virtually to the override, whose backing field is not yet assigned: it holds null (printed as \"null\"). This is the open-member-in-constructor trap; the compiler warns about accessing non-final properties in init.",
+        "fr": "L'init de Base s'exécute avant les initialiseurs de Derived. Lire label dispatch virtuellement vers l'override, dont le backing field n'est pas encore affecté : il vaut null (affiché \"null\"). C'est le piège du membre open dans le constructeur ; le compilateur avertit sur l'accès aux propriétés non-final dans init."
+      }
+    },
+    {
+      "id": "ex-sealed-when",
+      "kind": "mcq",
+      "difficulty": 1,
+      "prompt": {
+        "en": "You add a new subtype `Refunded` to the sealed interface PaymentResult. Which existing code breaks at compile time?",
+        "fr": "Vous ajoutez un sous-type `Refunded` à la sealed interface PaymentResult. Quel code existant casse à la compilation ?"
+      },
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "Every when over PaymentResult used as an expression without an else branch",
+            "fr": "Tout when sur PaymentResult utilisé comme expression sans branche else"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "Only when blocks located in the same file as the sealed interface",
+            "fr": "Seulement les when situés dans le même fichier que la sealed interface"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "All code referencing PaymentResult, in any form",
+            "fr": "Tout code référençant PaymentResult, sous toute forme"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "Nothing: new subtypes are always backward compatible",
+            "fr": "Rien : les nouveaux sous-types sont toujours rétrocompatibles"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "Exhaustive when expressions without else must now handle Refunded: each one becomes a compile error pointing at exactly the logic to update. That is the main selling point of sealed hierarchies. when with an else, or used as a bare statement, silently absorbs the new case.",
+        "fr": "Les when exhaustifs en expression sans else doivent désormais traiter Refunded : chacun devient une erreur de compilation pointant exactement la logique à mettre à jour. C'est l'argument principal des hiérarchies sealed. Un when avec else, ou en simple instruction, absorbe silencieusement le nouveau cas."
+      }
+    },
+    {
+      "id": "ex-value-boxing",
+      "kind": "mcq",
+      "difficulty": 3,
+      "prompt": {
+        "en": "Given `@JvmInline value class Meters(val v: Double)`, which usage forces boxing?",
+        "fr": "Soit `@JvmInline value class Meters(val v: Double)`, quel usage force le boxing ?"
+      },
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "fun walk(distance: Meters)",
+            "fr": "fun walk(distance: Meters)"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "val distances: List<Meters>",
+            "fr": "val distances: List<Meters>"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "val d = Meters(5.0) + used as a local variable",
+            "fr": "val d = Meters(5.0) + utilisée en variable locale"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "Returning Meters from a private function",
+            "fr": "Renvoyer Meters depuis une fonction privée"
+          }
+        }
+      ],
+      "answerId": "b",
+      "explanation": {
+        "en": "Generic containers erase to Object, so each element must be a real object: List<Meters> boxes every value. Parameters, locals and return types use the underlying Double directly. Nullable Meters? and passing through an implemented interface are the other boxing triggers.",
+        "fr": "Les conteneurs génériques s'effacent vers Object, chaque élément doit être un vrai objet : List<Meters> boxe chaque valeur. Paramètres, locales et types de retour utilisent directement le Double sous-jacent. Meters? nullable et le passage par une interface implémentée sont les autres déclencheurs de boxing."
+      }
+    },
+    {
+      "id": "ex-delegation-bypass",
+      "kind": "predict-output",
+      "difficulty": 3,
+      "prompt": {
+        "en": "What does this program print?",
+        "fr": "Qu'affiche ce programme ?"
+      },
+      "code": "class Audited(\n    private val inner: MutableList<String> = mutableListOf()\n) : MutableList<String> by inner {\n    var count = 0\n    override fun add(element: String): Boolean {\n        count++\n        return inner.add(element)\n    }\n}\n\nfun main() {\n    val list = Audited()\n    list.add(\"a\")\n    list.addAll(listOf(\"b\", \"c\"))\n    println(\"${list.size} items, count=${list.count}\")\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": { "en": "3 items, count=3", "fr": "3 items, count=3" }
+        },
+        {
+          "id": "b",
+          "label": { "en": "3 items, count=1", "fr": "3 items, count=1" }
+        },
+        {
+          "id": "c",
+          "label": { "en": "1 items, count=1", "fr": "1 items, count=1" }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "It does not compile: add is already implemented by the delegate",
+            "fr": "Ne compile pas : add est déjà implémentée par le délégué"
+          }
+        }
+      ],
+      "answerId": "b",
+      "explanation": {
+        "en": "addAll is generated as a plain forward to inner.addAll(...), and whatever inner does internally never re-enters your override: only the direct list.add(\"a\") call increments count. All 3 elements land in inner, so size is 3 but count is 1. To intercept everything, override addAll too (and every other mutator).",
+        "fr": "addAll est générée comme un simple transfert vers inner.addAll(...), et ce qu'inner fait en interne ne repasse jamais par votre override : seul l'appel direct list.add(\"a\") incrémente count. Les 3 éléments arrivent dans inner, size vaut 3 mais count vaut 1. Pour tout intercepter, surchargez aussi addAll (et chaque mutateur)."
+      }
+    },
+    {
+      "id": "ex-companion-static",
+      "kind": "find-bug",
+      "difficulty": 1,
+      "prompt": {
+        "en": "A Java teammate reports this does not compile from Java. Why?",
+        "fr": "Un collègue Java signale que ceci ne compile pas côté Java. Pourquoi ?"
+      },
+      "code": "// Kotlin\nclass Signer {\n    companion object {\n        fun sign(payload: String): String = ...\n    }\n}\n\n// Java\nString sig = Signer.sign(payload);   // error: cannot resolve method",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "Companion members are instance members of Signer.Companion; Java needs Signer.Companion.sign(...) or @JvmStatic on sign",
+            "fr": "Les membres de companion sont des membres d'instance de Signer.Companion ; Java doit écrire Signer.Companion.sign(...) ou annoter sign avec @JvmStatic"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "Kotlin functions are never callable from Java",
+            "fr": "Les fonctions Kotlin ne sont jamais appelables depuis Java"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "The companion object must be given a name first",
+            "fr": "Le companion object doit d'abord recevoir un nom"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "sign must be declared inline to cross the language boundary",
+            "fr": "sign doit être déclarée inline pour franchir la frontière de langage"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "A companion is a real singleton object, not a bag of statics: Java sees Signer.Companion.sign(...). Adding @JvmStatic generates a true static forwarding method so Signer.sign(...) works. Kotlin call sites are unaffected either way.",
+        "fr": "Un companion est un vrai singleton, pas un sac de statiques : Java voit Signer.Companion.sign(...). Ajouter @JvmStatic génère une vraie méthode statique de transfert et Signer.sign(...) fonctionne. Les sites d'appel Kotlin ne changent pas."
+      }
+    }
+  ]
+}
