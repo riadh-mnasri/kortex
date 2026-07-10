@@ -1,0 +1,566 @@
+{
+  "id": "generics",
+  "title": { "en": "Generics", "fr": "Génériques" },
+  "tagline": {
+    "en": "Variance, reified, constraints",
+    "fr": "Variance, reified, contraintes"
+  },
+  "icon": "🧬",
+  "lessons": [
+    {
+      "id": "generic-basics-constraints",
+      "title": {
+        "en": "Generic declarations & constraints",
+        "fr": "Déclarations génériques & contraintes"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "Type parameters appear on classes (`class Cache<K, V>`), functions (`fun <T> first(list: List<T>): T`) and properties with receivers. An upper bound constrains the parameter: `<T : Comparable<T>>`; unconstrained parameters implicitly bound to `Any?`, so `T` alone accepts nullable types. Require non-null with `<T : Any>`.",
+            "fr": "Les paramètres de type apparaissent sur les classes (`class Cache<K, V>`), les fonctions (`fun <T> first(list: List<T>): T`) et les propriétés à récepteur. Une borne supérieure contraint le paramètre : `<T : Comparable<T>>` ; sans contrainte, la borne implicite est `Any?`, donc `T` seul accepte les types nullables. Exigez non-nul avec `<T : Any>`."
+          }
+        },
+        {
+          "type": "code",
+          "code": "fun <T> maxOf(a: T, b: T): T where T : Comparable<T>, T : Serializable =\n    if (a >= b) a else b",
+          "caption": {
+            "en": "Multiple bounds need a where clause; only one may be a class.",
+            "fr": "Plusieurs bornes exigent une clause where ; une seule peut être une classe."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "Because the default bound is Any?, a naive `fun <T> T.orDefault(d: T): T = this ?: d` compiles and silently accepts null receivers. If your algorithm assumes non-null, say so in the signature with `<T : Any>`; the compiler then rejects nullable arguments instead of you discovering it at runtime.",
+            "fr": "La borne par défaut étant Any?, un naïf `fun <T> T.orDefault(d: T): T = this ?: d` compile et accepte silencieusement des récepteurs null. Si votre algorithme suppose non-nul, dites-le dans la signature avec `<T : Any>` ; le compilateur rejette alors les arguments nullables au lieu d'une découverte à l'exécution."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "The recursive bound `<T : Comparable<T>>` (F-bounded polymorphism) is the standard way to say \"T can be compared to itself\": it powers sorted(), max() and every ordering API in the stdlib.",
+            "fr": "La borne récursive `<T : Comparable<T>>` (polymorphisme F-borné) est la façon standard de dire \"T se compare à lui-même\" : elle alimente sorted(), max() et toutes les API d'ordre de la stdlib."
+          }
+        }
+      ]
+    },
+    {
+      "id": "variance",
+      "title": {
+        "en": "Variance: in, out & projections",
+        "fr": "Variance : in, out & projections"
+      },
+      "minutes": 5,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "Variance answers: is `Box<Dog>` a `Box<Animal>`? By default no (invariance). `out T` declares covariance: the type only PRODUCES T (return positions), so `List<Dog>` is a `List<Animal>`. `in T` declares contravariance: the type only CONSUMES T (parameter positions), so `Comparator<Animal>` is a `Comparator<Dog>`.",
+            "fr": "La variance répond à : `Box<Dog>` est-il un `Box<Animal>` ? Par défaut non (invariance). `out T` déclare la covariance : le type ne fait que PRODUIRE du T (positions de retour), donc `List<Dog>` est une `List<Animal>`. `in T` déclare la contravariance : le type ne fait que CONSOMMER du T (positions de paramètre), donc `Comparator<Animal>` est un `Comparator<Dog>`."
+          }
+        },
+        {
+          "type": "code",
+          "code": "interface Source<out T> { fun next(): T }        // producer\ninterface Sink<in T>   { fun accept(item: T) }   // consumer\n\nval animals: Source<Animal> = catSource   // OK: out\nval catSink: Sink<Cat> = animalSink       // OK: in",
+          "caption": {
+            "en": "Producer out, consumer in: Kotlin's declaration-site version of PECS.",
+            "fr": "Producteur out, consommateur in : la version declaration-site du PECS de Java."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "This is why the read-only `List<out E>` is covariant while `MutableList<E>` is invariant: add(element: E) puts E in a consuming position, and allowing `MutableList<Dog>` as `MutableList<Animal>` would let you add a Cat to a dog list. The compiler enforces that an out parameter never appears in an in position (and vice versa).",
+            "fr": "C'est pourquoi la `List<out E>` en lecture seule est covariante alors que `MutableList<E>` est invariante : add(element: E) place E en position de consommation, et accepter `MutableList<Dog>` comme `MutableList<Animal>` permettrait d'ajouter un Cat à une liste de chiens. Le compilateur interdit qu'un paramètre out apparaisse en position in (et inversement)."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "When a class must stay invariant, vary at the use site with projections: `fun copy(from: MutableList<out T>, to: MutableList<in T>)`. A projected `out` list refuses writes; a projected `in` list reads as Any?. The star projection `List<*>` means \"some unknown type argument\": you can read Any?, you cannot write anything but null.",
+            "fr": "Quand une classe doit rester invariante, variez au site d'usage avec les projections : `fun copy(from: MutableList<out T>, to: MutableList<in T>)`. Une liste projetée `out` refuse les écritures ; une liste projetée `in` se lit comme Any?. La star projection `List<*>` signifie \"un argument de type inconnu\" : lecture en Any?, aucune écriture sauf null."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "JVM arrays are covariant and unsafely so in Java; Kotlin's Array<T> is deliberately INVARIANT: Array<Int> is not an Array<Number>, no ArrayStoreException possible. Migrating Java APIs that abuse array covariance is where this usually bites.",
+            "fr": "Les tableaux JVM sont covariants, et dangereusement en Java ; l'Array<T> de Kotlin est volontairement INVARIANT : Array<Int> n'est pas un Array<Number>, aucune ArrayStoreException possible. Ce point pique surtout en migrant des API Java qui abusent de la covariance des tableaux."
+          }
+        }
+      ]
+    },
+    {
+      "id": "erasure-reified",
+      "title": {
+        "en": "Type erasure & runtime checks",
+        "fr": "Effacement de type & vérifications à l'exécution"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "On the JVM, generics are erased: at runtime a `List<String>` is just a List. Consequences: `x is List<String>` is rejected (uncheckable), only `x is List<*>` compiles; casts to parameterized types are unchecked warnings that may explode later as ClassCastException at the USE site, far from the bad cast.",
+            "fr": "Sur la JVM, les génériques sont effacés : à l'exécution une `List<String>` n'est qu'une List. Conséquences : `x is List<String>` est rejeté (invérifiable), seul `x is List<*>` compile ; les casts vers des types paramétrés sont des warnings unchecked qui peuvent exploser plus tard en ClassCastException au site d'USAGE, loin du cast fautif."
+          }
+        },
+        {
+          "type": "code",
+          "code": "@Suppress(\"UNCHECKED_CAST\")\nfun <T> Bundle.getTyped(key: String): T = get(key) as T\n// the CCE, if any, surfaces at the caller's assignment, not here",
+          "caption": {
+            "en": "Unchecked casts defer failures: document the invariant that makes them safe.",
+            "fr": "Les casts unchecked diffèrent les échecs : documentez l'invariant qui les rend sûrs."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Escape hatches: `reified` type parameters on inline functions keep the real type at the call site (`filterIsInstance<T>()`, `x is T`); otherwise pass a `KClass<T>`/`Class<T>` explicitly, the pre-reified pattern still needed in non-inline contexts (class constructors, interfaces).",
+            "fr": "Échappatoires : les paramètres `reified` des fonctions inline gardent le type réel au site d'appel (`filterIsInstance<T>()`, `x is T`) ; sinon passez explicitement un `KClass<T>`/`Class<T>`, le pattern pré-reified toujours nécessaire hors inline (constructeurs de classes, interfaces)."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "Overloads that erase to the same signature collide: `fun handle(x: List<Int>)` and `fun handle(x: List<String>)` cannot coexist (platform clash). Fix with @JvmName on one of them, or distinct function names.",
+            "fr": "Les surcharges qui s'effacent vers la même signature entrent en collision : `fun handle(x: List<Int>)` et `fun handle(x: List<String>)` ne peuvent pas coexister (platform clash). Corrigez avec @JvmName sur l'une, ou des noms distincts."
+          }
+        }
+      ]
+    },
+    {
+      "id": "generics-in-apis",
+      "title": {
+        "en": "Designing generic APIs",
+        "fr": "Concevoir des API génériques"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "Rules of thumb. Accept the widest useful type: take `Iterable<T>` or `Sequence<T>` rather than List when you only read. Declare variance at the class when the role is intrinsic (a Source is always a producer); project at the use site when the class is honestly both (MutableList). Return the most specific type you can promise.",
+            "fr": "Règles pratiques. Acceptez le type le plus large utile : prenez `Iterable<T>` ou `Sequence<T>` plutôt que List quand vous ne faites que lire. Déclarez la variance sur la classe quand le rôle est intrinsèque (une Source produit toujours) ; projetez au site d'usage quand la classe est honnêtement les deux (MutableList). Renvoyez le type le plus précis que vous pouvez promettre."
+          }
+        },
+        {
+          "type": "code",
+          "code": "// Nothing is the bottom type: perfect for empty singletons\nobject EmptyResult : Result<Nothing>()\nval empty: List<Nothing> = emptyList()\nval strings: List<String> = empty   // OK: List is out, Nothing <: String",
+          "caption": {
+            "en": "Covariance plus Nothing lets one empty instance serve every element type.",
+            "fr": "Covariance plus Nothing : une seule instance vide sert tous les types d'éléments."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Generic type inference flows from arguments and the expected type; when both are absent, spell the argument out: `emptyList<String>()`. Underscore infers partially: `foo<_, String>()`. Definitely non-nullable types `T & Any` (Kotlin 1.7+) matter when overriding Java generics annotated @NotNull.",
+            "fr": "L'inférence coule des arguments et du type attendu ; quand les deux manquent, explicitez : `emptyList<String>()`. Le tiret bas infère partiellement : `foo<_, String>()`. Les types définitivement non-nuls `T & Any` (Kotlin 1.7+) comptent pour surcharger des génériques Java annotés @NotNull."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "When an API takes both a producer and a consumer of the same T, write copy(from: List<T>, into: MutableList<in T>): callers can then copy a List<Int> into a MutableList<Number> without casts. Stdlib's own copyInto and fill follow this shape.",
+            "fr": "Quand une API prend à la fois un producteur et un consommateur du même T, écrivez copy(from: List<T>, into: MutableList<in T>) : les appelants copient alors une List<Int> vers une MutableList<Number> sans cast. copyInto et fill de la stdlib suivent cette forme."
+          }
+        }
+      ]
+    }
+  ],
+  "flashcards": [
+    {
+      "id": "fc-out-variance",
+      "front": {
+        "en": "What does `out T` on a class declaration promise and permit?",
+        "fr": "Que promet et permet `out T` sur une déclaration de classe ?"
+      },
+      "back": {
+        "en": "Promise: T only appears in producing positions (returns), never as parameters. Permit: covariance, Box<Dog> usable as Box<Animal>. The compiler rejects any T in an in position within the class.",
+        "fr": "Promesse : T n'apparaît qu'en positions de production (retours), jamais en paramètre. Permission : la covariance, Box<Dog> utilisable comme Box<Animal>. Le compilateur rejette tout T en position in dans la classe."
+      }
+    },
+    {
+      "id": "fc-in-variance",
+      "front": {
+        "en": "Why is Comparator<Animal> assignable to Comparator<Cat>?",
+        "fr": "Pourquoi Comparator<Animal> est-il affectable à Comparator<Cat> ?"
+      },
+      "back": {
+        "en": "Comparator declares in T (contravariance): it only consumes T. Anything that can compare all Animals can in particular compare Cats. Supertype arguments flow toward subtype parameters: the arrow flips.",
+        "fr": "Comparator déclare in T (contravariance) : il ne fait que consommer du T. Ce qui sait comparer tous les Animals sait en particulier comparer des Cats. Les arguments supertypes coulent vers les paramètres sous-types : la flèche s'inverse."
+      }
+    },
+    {
+      "id": "fc-mutablelist-invariant",
+      "front": {
+        "en": "Why is List covariant but MutableList invariant?",
+        "fr": "Pourquoi List est-elle covariante mais MutableList invariante ?"
+      },
+      "back": {
+        "en": "List<out E> only produces elements, so covariance is safe. MutableList also consumes (add), and covariance would allow inserting a Cat into a MutableList<Dog> seen as MutableList<Animal>. Reading and writing pull variance in opposite directions, so it must stay invariant.",
+        "fr": "List<out E> ne fait que produire, la covariance est sûre. MutableList consomme aussi (add), et la covariance permettrait d'insérer un Cat dans une MutableList<Dog> vue comme MutableList<Animal>. Lecture et écriture tirent la variance en sens opposés, elle doit rester invariante."
+      }
+    },
+    {
+      "id": "fc-star-projection",
+      "front": {
+        "en": "What can you do with a List<*> and a MutableList<*>?",
+        "fr": "Que peut-on faire avec une List<*> et une MutableList<*> ?"
+      },
+      "back": {
+        "en": "Read elements as Any? from both; size, isEmpty and other non-T operations work. You cannot write anything into MutableList<*> (except null via clear-like ops): the element type is unknown, so no value can be proven safe.",
+        "fr": "Lire les éléments comme Any? dans les deux ; size, isEmpty et les opérations sans T fonctionnent. Impossible d'écrire dans MutableList<*> : le type d'élément est inconnu, aucune valeur ne peut être prouvée sûre."
+      }
+    },
+    {
+      "id": "fc-use-site",
+      "front": {
+        "en": "What is a use-site projection and when do you reach for it?",
+        "fr": "Qu'est-ce qu'une projection au site d'usage et quand l'utiliser ?"
+      },
+      "back": {
+        "en": "Writing out/in on a usage rather than the declaration: fun render(items: MutableList<out Shape>). Needed when the class is invariant (it both reads and writes) but THIS function only uses one side. Kotlin's counterpart to Java wildcards.",
+        "fr": "Écrire out/in sur un usage plutôt que la déclaration : fun render(items: MutableList<out Shape>). Nécessaire quand la classe est invariante (elle lit et écrit) mais que CETTE fonction n'utilise qu'un côté. L'équivalent Kotlin des wildcards Java."
+      }
+    },
+    {
+      "id": "fc-array-invariant",
+      "front": {
+        "en": "Is Array<Int> assignable to Array<Number> in Kotlin?",
+        "fr": "Array<Int> est-il affectable à Array<Number> en Kotlin ?"
+      },
+      "back": {
+        "en": "No: Kotlin arrays are invariant, unlike Java's covariant (and unsound) arrays. This removes ArrayStoreException by construction. If you only read, take List<Number> or Array<out Number>.",
+        "fr": "Non : les tableaux Kotlin sont invariants, contrairement aux tableaux Java covariants (et non sûrs). Cela élimine ArrayStoreException par construction. En lecture seule, prenez List<Number> ou Array<out Number>."
+      }
+    },
+    {
+      "id": "fc-erasure-ischeck",
+      "front": {
+        "en": "Why does `value is Map<String, Int>` not compile, and what does?",
+        "fr": "Pourquoi `value is Map<String, Int>` ne compile pas, et qu'écrire à la place ?"
+      },
+      "back": {
+        "en": "Erasure removes type arguments at runtime: the check is unverifiable. `value is Map<*, *>` compiles (checks only the raw shape). To check contents you must inspect entries, or control the type at the boundary with reified helpers.",
+        "fr": "L'effacement supprime les arguments de type à l'exécution : le test est invérifiable. `value is Map<*, *>` compile (ne vérifie que la forme brute). Pour vérifier le contenu, inspectez les entrées, ou contrôlez le type à la frontière avec des helpers reified."
+      }
+    },
+    {
+      "id": "fc-unchecked-cast",
+      "front": {
+        "en": "Where does the ClassCastException from an unchecked cast actually surface?",
+        "fr": "Où surgit réellement la ClassCastException d'un cast unchecked ?"
+      },
+      "back": {
+        "en": "Not at the cast: at the first use that assumes the wrong element type, often far away (an assignment, a loop body). The compiler inserts the real checkcast at use sites. This delayed failure is why unchecked casts deserve a documented invariant.",
+        "fr": "Pas au cast : au premier usage qui suppose le mauvais type d'élément, souvent loin (une affectation, un corps de boucle). Le compilateur insère le vrai checkcast aux sites d'usage. Cet échec différé justifie de documenter l'invariant d'un cast unchecked."
+      }
+    },
+    {
+      "id": "fc-where-clause",
+      "front": {
+        "en": "How do you declare multiple upper bounds on a type parameter?",
+        "fr": "Comment déclarer plusieurs bornes supérieures sur un paramètre de type ?"
+      },
+      "back": {
+        "en": "With a where clause: fun <T> f(x: T) where T : Comparable<T>, T : Cloneable. At most one bound may be a class (and it comes first conceptually); the rest are interfaces. Single bounds inline in the angle brackets.",
+        "fr": "Avec une clause where : fun <T> f(x: T) where T : Comparable<T>, T : Cloneable. Au plus une borne peut être une classe ; les autres sont des interfaces. Une borne unique s'écrit dans les chevrons."
+      }
+    },
+    {
+      "id": "fc-nothing-generics",
+      "front": {
+        "en": "Why can emptyList<Nothing>() serve as a List<String> and a List<User>?",
+        "fr": "Pourquoi emptyList<Nothing>() peut-elle servir de List<String> et de List<User> ?"
+      },
+      "back": {
+        "en": "Nothing is a subtype of every type and List is covariant (out E): List<Nothing> is a subtype of List<T> for any T. One shared immutable empty instance covers all element types, which is exactly how the stdlib implements emptyList.",
+        "fr": "Nothing est sous-type de tout type et List est covariante (out E) : List<Nothing> est sous-type de List<T> pour tout T. Une seule instance vide immuable couvre tous les types d'éléments, exactement l'implémentation d'emptyList dans la stdlib."
+      }
+    },
+    {
+      "id": "fc-tany-bound",
+      "front": {
+        "en": "What is the difference between <T> and <T : Any>?",
+        "fr": "Quelle différence entre <T> et <T : Any> ?"
+      },
+      "back": {
+        "en": "<T> implicitly bounds to Any?, so T may be instantiated with nullable types (T can hold null). <T : Any> forbids nullable type arguments: the compiler guarantees values of T are never null inside the function.",
+        "fr": "<T> a la borne implicite Any?, T peut être instancié avec des types nullables (T peut contenir null). <T : Any> interdit les arguments de type nullables : le compilateur garantit que les valeurs de T ne sont jamais null dans la fonction."
+      }
+    },
+    {
+      "id": "fc-platform-clash",
+      "front": {
+        "en": "Why can't `fun log(xs: List<Int>)` and `fun log(xs: List<String>)` coexist, and what is the fix?",
+        "fr": "Pourquoi `fun log(xs: List<Int>)` et `fun log(xs: List<String>)` ne peuvent pas coexister, et quel remède ?"
+      },
+      "back": {
+        "en": "After erasure both have the JVM signature log(List): a platform declaration clash. Fix: rename one, or keep Kotlin overloading with @JvmName(\"logStrings\") on one of them, which changes only the JVM name.",
+        "fr": "Après effacement, les deux ont la signature JVM log(List) : platform declaration clash. Remède : renommer l'une, ou garder la surcharge Kotlin avec @JvmName(\"logStrings\") sur l'une, qui ne change que le nom JVM."
+      }
+    }
+  ],
+  "exercises": [
+    {
+      "id": "ex-variance-assign",
+      "kind": "mcq",
+      "difficulty": 1,
+      "prompt": {
+        "en": "Which assignment compiles?",
+        "fr": "Quelle affectation compile ?"
+      },
+      "code": "val dogs: List<Dog> = listOf(Dog())\nval mutableDogs: MutableList<Dog> = mutableListOf(Dog())",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "val a: List<Animal> = dogs",
+            "fr": "val a: List<Animal> = dogs"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "val b: MutableList<Animal> = mutableDogs",
+            "fr": "val b: MutableList<Animal> = mutableDogs"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "val c: Array<Animal> = arrayOf(Dog()) as Array<Dog>",
+            "fr": "val c: Array<Animal> = arrayOf(Dog()) as Array<Dog>"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "None of them",
+            "fr": "Aucune"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "List<out E> is covariant: List<Dog> is a List<Animal>. MutableList is invariant (add would be unsound) and Kotlin arrays are invariant too, so b and c are rejected. To pass mutableDogs somewhere that only reads, project: MutableList<out Animal>.",
+        "fr": "List<out E> est covariante : List<Dog> est une List<Animal>. MutableList est invariante (add serait non sûr) et les tableaux Kotlin aussi, donc b et c sont rejetées. Pour passer mutableDogs en lecture seule, projetez : MutableList<out Animal>."
+      }
+    },
+    {
+      "id": "ex-erasure-check",
+      "kind": "find-bug",
+      "difficulty": 2,
+      "prompt": {
+        "en": "This event router does not compile. Why?",
+        "fr": "Ce routeur d'événements ne compile pas. Pourquoi ?"
+      },
+      "code": "class Router<T : Event> {\n    fun route(payload: Any) {\n        if (payload is T) {          // error here\n            deliver(payload)\n        }\n    }\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "T is erased at runtime; a class type parameter cannot be used in an is check. Pass a KClass<T> to the constructor (or use a reified inline factory) and check with kClass.isInstance(payload)",
+            "fr": "T est effacé à l'exécution ; un paramètre de type de classe ne peut pas servir dans un is. Passez un KClass<T> au constructeur (ou une factory inline reified) et testez avec kClass.isInstance(payload)"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "is only works on sealed types",
+            "fr": "is ne fonctionne que sur les types sealed"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "payload must be declared as Event, not Any",
+            "fr": "payload doit être déclaré Event, pas Any"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "The class needs the reified keyword on T",
+            "fr": "La classe doit marquer T comme reified"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "reified exists only on inline FUNCTIONS; class type parameters are always erased, so `payload is T` has nothing to check against at runtime. The standard pattern: class Router<T : Event>(private val type: KClass<T>) plus an inline reified factory fun <reified T : Event> router() = Router(T::class).",
+        "fr": "reified n'existe que sur les FONCTIONS inline ; les paramètres de type de classe sont toujours effacés, `payload is T` n'a rien à vérifier à l'exécution. Pattern standard : class Router<T : Event>(private val type: KClass<T>) plus une factory inline reified fun <reified T : Event> router() = Router(T::class)."
+      }
+    },
+    {
+      "id": "ex-out-position",
+      "kind": "find-bug",
+      "difficulty": 2,
+      "prompt": {
+        "en": "The compiler rejects this interface. Where is the conflict?",
+        "fr": "Le compilateur rejette cette interface. Où est le conflit ?"
+      },
+      "code": "interface Repository<out T> {\n    fun findAll(): List<T>\n    fun save(entity: T)\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "findAll returns a List, which cannot carry a type parameter",
+            "fr": "findAll renvoie une List, qui ne peut pas porter de paramètre de type"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "save puts T in an in (consuming) position, contradicting the out declaration; drop out, split the interface, or annotate with @UnsafeVariance knowingly",
+            "fr": "save place T en position in (consommation), contredisant la déclaration out ; retirez out, scindez l'interface, ou assumez un @UnsafeVariance"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "Interfaces cannot declare variance, only classes can",
+            "fr": "Les interfaces ne peuvent pas déclarer de variance, seulement les classes"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "out requires T to have an upper bound",
+            "fr": "out exige une borne supérieure sur T"
+          }
+        }
+      ],
+      "answerId": "b",
+      "explanation": {
+        "en": "out T promises T never enters as a parameter, but save(entity: T) consumes one. The honest fixes: make the interface invariant, or split reads and writes (ReadRepository<out T> / WriteRepository<in T>), the interface-segregation route that CQRS-style designs take. @UnsafeVariance silences the check and shifts the burden to you.",
+        "fr": "out T promet que T n'entre jamais en paramètre, or save(entity: T) en consomme un. Correctifs honnêtes : rendre l'interface invariante, ou scinder lectures et écritures (ReadRepository<out T> / WriteRepository<in T>), la voie de la ségrégation d'interfaces qu'empruntent les designs type CQRS. @UnsafeVariance fait taire la vérification et vous transfère la charge."
+      }
+    },
+    {
+      "id": "ex-star-write",
+      "kind": "mcq",
+      "difficulty": 2,
+      "prompt": {
+        "en": "Inside `fun audit(entries: MutableList<*>)`, which statement compiles?",
+        "fr": "Dans `fun audit(entries: MutableList<*>)`, quelle instruction compile ?"
+      },
+      "choices": [
+        {
+          "id": "a",
+          "label": { "en": "entries.add(\"marker\")", "fr": "entries.add(\"marker\")" }
+        },
+        {
+          "id": "b",
+          "label": { "en": "val first: Any? = entries.firstOrNull()", "fr": "val first: Any? = entries.firstOrNull()" }
+        },
+        {
+          "id": "c",
+          "label": { "en": "entries[0] = entries[1]", "fr": "entries[0] = entries[1]" }
+        },
+        {
+          "id": "d",
+          "label": { "en": "entries.add(null)", "fr": "entries.add(null)" }
+        }
+      ],
+      "answerId": "b",
+      "explanation": {
+        "en": "Star projection erases the element type to \"unknown\": reads come back as Any? (b compiles). All writes are rejected, including null and even re-inserting the list's own elements (c), because the compiler cannot prove the value matches the unknown type. To move elements within the same list, capture the type: fun <T> shuffle(list: MutableList<T>).",
+        "fr": "La star projection rend le type d'élément \"inconnu\" : les lectures reviennent en Any? (b compile). Toutes les écritures sont rejetées, y compris null et même la réinsertion des propres éléments de la liste (c), car le compilateur ne peut pas prouver la compatibilité avec le type inconnu. Pour déplacer des éléments dans la même liste, capturez le type : fun <T> shuffle(list: MutableList<T>)."
+      }
+    },
+    {
+      "id": "ex-inference-nothing",
+      "kind": "predict-output",
+      "difficulty": 3,
+      "prompt": {
+        "en": "What does this program print?",
+        "fr": "Qu'affiche ce programme ?"
+      },
+      "code": "fun <T> pick(a: T, b: T): T = a\n\nfun main() {\n    val x = pick(1, \"two\")\n    println(x)\n    println(x is Int)\n    // println(x + 1)   // would this line compile?\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "1 / true, and x + 1 would compile since x is an Int",
+            "fr": "1 / true, et x + 1 compilerait puisque x est un Int"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "1 / true, but x + 1 would NOT compile: T was inferred as the common supertype (Comparable & Serializable / Any), so x is not statically an Int",
+            "fr": "1 / true, mais x + 1 ne compilerait PAS : T a été inféré au supertype commun (Comparable & Serializable / Any), x n'est pas statiquement un Int"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "Compile error at pick(1, \"two\"): arguments must have the same type",
+            "fr": "Erreur de compilation à pick(1, \"two\") : les arguments doivent avoir le même type"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "1 / false",
+            "fr": "1 / false"
+          }
+        }
+      ],
+      "answerId": "b",
+      "explanation": {
+        "en": "Inference does not fail on mixed arguments: it widens T to the least common supertype of Int and String (an intersection of Comparable and Serializable, practically Any-like). The call compiles, x holds 1 and is dynamically an Int (true), but statically x has the widened type, so Int operations like + are unavailable. Silent widening is how type errors sneak past generic functions.",
+        "fr": "L'inférence n'échoue pas sur des arguments mélangés : elle élargit T au plus petit supertype commun d'Int et String (une intersection de Comparable et Serializable, en pratique proche d'Any). L'appel compile, x contient 1 et est dynamiquement un Int (true), mais statiquement x a le type élargi, les opérations d'Int comme + sont indisponibles. L'élargissement silencieux est la porte par laquelle les erreurs de type contournent les fonctions génériques."
+      }
+    },
+    {
+      "id": "ex-in-projection",
+      "kind": "mcq",
+      "difficulty": 2,
+      "prompt": {
+        "en": "You write `fun fill(target: MutableList<in Int>, value: Int)`. Which callers work?",
+        "fr": "Vous écrivez `fun fill(target: MutableList<in Int>, value: Int)`. Quels appelants fonctionnent ?"
+      },
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "MutableList<Int> only",
+            "fr": "MutableList<Int> uniquement"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "MutableList<Int>, MutableList<Number> and MutableList<Any>",
+            "fr": "MutableList<Int>, MutableList<Number> et MutableList<Any>"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "Any MutableList regardless of element type",
+            "fr": "Toute MutableList quel que soit le type d'élément"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "MutableList<Int> and MutableList<Short>",
+            "fr": "MutableList<Int> et MutableList<Short>"
+          }
+        }
+      ],
+      "answerId": "b",
+      "explanation": {
+        "en": "in Int accepts lists whose element type is Int or any SUPERTYPE of Int: Number, Any (and their nullable variants). Writing an Int into any of them is safe. Short is unrelated to Int in the type hierarchy (no numeric widening), so d is wrong; c would allow MutableList<String>, unsound.",
+        "fr": "in Int accepte les listes dont le type d'élément est Int ou tout SUPERTYPE d'Int : Number, Any (et leurs variantes nullables). Y écrire un Int est sûr. Short n'a aucun lien de sous-typage avec Int (pas d'élargissement numérique), donc d est faux ; c accepterait MutableList<String>, non sûr."
+      }
+    }
+  ]
+}

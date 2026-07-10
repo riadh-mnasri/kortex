@@ -14,6 +14,7 @@ import packManifest from "@/content/packs/kotlin/pack.json";
 import basics from "@/content/packs/kotlin/modules/basics.json";
 import functions from "@/content/packs/kotlin/modules/functions.json";
 import classes from "@/content/packs/kotlin/modules/classes.json";
+import generics from "@/content/packs/kotlin/modules/generics.json";
 import coroutines from "@/content/packs/kotlin/modules/coroutines.json";
 
 export const pack = packManifest as unknown as Pack;
@@ -23,6 +24,7 @@ const modules: Record<string, Module> = {
   [basics.id]: basics as unknown as Module,
   [functions.id]: functions as unknown as Module,
   [classes.id]: classes as unknown as Module,
+  [generics.id]: generics as unknown as Module,
   [coroutines.id]: coroutines as unknown as Module,
 };
 
