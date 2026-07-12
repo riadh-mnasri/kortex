@@ -1,0 +1,570 @@
+{
+  "id": "idioms",
+  "title": { "en": "Idioms & best practices", "fr": "Idiomes & bonnes pratiques" },
+  "tagline": {
+    "en": "Idiomatic Kotlin, differences with Java",
+    "fr": "Kotlin idiomatique, différences avec Java"
+  },
+  "icon": "🎯",
+  "lessons": [
+    {
+      "id": "expression-oriented",
+      "title": {
+        "en": "Expression-oriented code",
+        "fr": "Code orienté expressions"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "if, when and try are EXPRESSIONS: they produce values. Idiomatic Kotlin assigns from them instead of mutating a variable in branches. This kills the var-then-reassign pattern, makes every branch's contribution explicit, and lets the compiler check exhaustiveness where it applies.",
+            "fr": "if, when et try sont des EXPRESSIONS : ils produisent des valeurs. Le Kotlin idiomatique affecte depuis eux au lieu de muter une variable dans les branches. Cela élimine le pattern var-puis-réaffectation, rend explicite la contribution de chaque branche, et laisse le compilateur vérifier l'exhaustivité quand elle s'applique."
+          }
+        },
+        {
+          "type": "code",
+          "code": "val label = when {\n    score >= 90 -> \"excellent\"\n    score >= 60 -> \"pass\"\n    else        -> \"retry\"\n}\n\nval config = try {\n    parse(file)\n} catch (e: ParseException) {\n    Config.DEFAULT\n}",
+          "caption": {
+            "en": "No temporary var, no branch forgotten: the value is the point.",
+            "fr": "Pas de var temporaire, pas de branche oubliée : la valeur est le sujet."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Guard clauses read best with elvis returning early: `val user = repo.find(id) ?: return null`. Single-expression functions (`fun area(r: Double) = PI * r * r`) suit one-liners; once a body needs multiple statements, braces plus an explicit return type document better.",
+            "fr": "Les clauses de garde se lisent le mieux avec elvis et retour anticipé : `val user = repo.find(id) ?: return null`. Les fonctions à expression unique (`fun area(r: Double) = PI * r * r`) conviennent aux one-liners ; dès qu'un corps exige plusieurs instructions, accolades et type de retour explicite documentent mieux."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "In a try-expression, finally does NOT contribute to the value: `try { 1 } catch (...) { 2 } finally { 3 }` evaluates to 1. And a when without else used as an expression must be exhaustive; adding an enum entry later breaks compilation, which is a feature to embrace, not silence with else.",
+            "fr": "Dans un try-expression, finally ne contribue PAS à la valeur : `try { 1 } catch (...) { 2 } finally { 3 }` vaut 1. Et un when sans else utilisé en expression doit être exhaustif ; ajouter une entrée d'enum plus tard casse la compilation, une fonctionnalité à embrasser, pas à museler avec else."
+          }
+        }
+      ]
+    },
+    {
+      "id": "errors-and-results",
+      "title": {
+        "en": "Error modeling: exceptions, null, Result",
+        "fr": "Modéliser les erreurs : exceptions, null, Result"
+      },
+      "minutes": 5,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "Three tools, three jobs. Nullable return: the absence is normal and carries no reason (find returns T?). Sealed result hierarchy: the failure carries domain information callers must branch on (Approved/Declined/Pending). Exceptions: programming errors and truly exceptional conditions you do not expect callers to handle at every site.",
+            "fr": "Trois outils, trois emplois. Retour nullable : l'absence est normale et ne porte aucune raison (find renvoie T?). Hiérarchie sealed de résultat : l'échec porte une information métier sur laquelle les appelants doivent brancher (Approved/Declined/Pending). Exceptions : erreurs de programmation et conditions vraiment exceptionnelles que les appelants n'ont pas à gérer partout."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "The precondition trio: `require(cond) { msg }` validates ARGUMENTS (throws IllegalArgumentException), `check(cond) { msg }` validates STATE (IllegalStateException), `error(msg)` marks unreachable paths. Their messages are lazy lambdas: zero cost when the condition holds.",
+            "fr": "Le trio de préconditions : `require(cond) { msg }` valide les ARGUMENTS (IllegalArgumentException), `check(cond) { msg }` valide l'ÉTAT (IllegalStateException), `error(msg)` marque les chemins inatteignables. Leurs messages sont des lambdas paresseuses : coût nul quand la condition tient."
+          }
+        },
+        {
+          "type": "code",
+          "code": "fun book(seat: Seat, user: User?): Ticket {\n    requireNotNull(user) { \"user must be logged in\" }   // argument\n    check(!seat.locked) { \"seat map is locked\" }          // state\n    return when (seat.status) {\n        FREE     -> issue(seat, user)\n        HELD     -> waitlist(seat, user)\n        OCCUPIED -> error(\"unreachable: filtered upstream\")\n    }\n}"
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "runCatching catches ALL Throwables, including CancellationException: wrapping suspend calls in it silently breaks structured concurrency (the coroutine looks successful while being cancelled). In coroutines, either rethrow CancellationException from the failure branch or catch specific exceptions instead.",
+            "fr": "runCatching attrape TOUS les Throwables, y compris CancellationException : envelopper des appels suspend avec lui casse silencieusement la concurrence structurée (la coroutine paraît réussie alors qu'elle est annulée). En coroutines, relancez CancellationException depuis la branche d'échec ou attrapez des exceptions précises."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "kotlin.Result shines at boundaries you fold immediately: runCatching { parse(x) }.getOrElse { default }. As a general return type it fights the language (no early-return sugar); sealed hierarchies express domain failures better in signatures.",
+            "fr": "kotlin.Result brille aux frontières repliées immédiatement : runCatching { parse(x) }.getOrElse { default }. Comme type de retour général il lutte contre le langage (pas de sucre de retour anticipé) ; les hiérarchies sealed expriment mieux les échecs métier dans les signatures."
+          }
+        }
+      ]
+    },
+    {
+      "id": "immutability-api-design",
+      "title": {
+        "en": "Immutability & API design defaults",
+        "fr": "Immutabilité & défauts de conception d'API"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "Defaults that scale: `val` unless mutation is the point; read-only List/Map in every public signature (accept the narrowest, return the safest); data classes for value semantics; one expression per concept rather than clever chains. Mutability is an implementation detail to hide, not an API to publish.",
+            "fr": "Des défauts qui passent à l'échelle : `val` sauf si la mutation est le sujet ; List/Map en lecture seule dans chaque signature publique (accepter le plus étroit, renvoyer le plus sûr) ; data classes pour la sémantique de valeur ; une expression par concept plutôt que des chaînes astucieuses. La mutabilité est un détail d'implémentation à cacher, pas une API à publier."
+          }
+        },
+        {
+          "type": "code",
+          "code": "class Basket {\n    private val _items = mutableListOf<Item>()\n    val items: List<Item> get() = _items.toList()   // defensive snapshot\n\n    fun add(item: Item) { _items += item }\n}",
+          "caption": {
+            "en": "Mutable inside, read-only snapshot outside: the standard encapsulation shape.",
+            "fr": "Mutable dedans, instantané en lecture seule dehors : la forme d'encapsulation standard."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Boolean parameters are unreadable at call sites: `render(true, false)` says nothing. Fix with named arguments enforced by convention (`render(compact = true, showHeader = false)`), or better, replace flag pairs with an enum or two functions. Same logic drives default values over telescoping overloads.",
+            "fr": "Les paramètres booléens sont illisibles aux sites d'appel : `render(true, false)` ne dit rien. Corrigez par arguments nommés imposés par convention (`render(compact = true, showHeader = false)`), ou mieux, remplacez les paires de drapeaux par un enum ou deux fonctions. La même logique privilégie les valeurs par défaut sur les surcharges télescopiques."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Kill the Utils class reflex: a focused extension function next to the type it serves (or in a clearly named file) beats StringUtils.kt with forty statics. Discoverability comes from the receiver type: IDE completion on the object finds the extension.",
+            "fr": "Tuez le réflexe classe Utils : une extension ciblée près du type qu'elle sert (ou dans un fichier bien nommé) bat StringUtils.kt et ses quarante statiques. La découvrabilité vient du type récepteur : la complétion IDE sur l'objet trouve l'extension."
+          }
+        }
+      ]
+    },
+    {
+      "id": "java-habits",
+      "title": {
+        "en": "Java habits to unlearn",
+        "fr": "Habitudes Java à désapprendre"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "The translation table: ternary `c ? a : b` becomes `if (c) a else b` (an expression). equals() becomes `==` (null-safe). Static members become top-level declarations or companions. Builders become constructors with default and named arguments. Streams become direct collection operators (no .stream()/.collect() ceremony). getters/setters become properties.",
+            "fr": "La table de traduction : le ternaire `c ? a : b` devient `if (c) a else b` (une expression). equals() devient `==` (null-safe). Les membres statiques deviennent des déclarations top-level ou des companions. Les builders deviennent des constructeurs à arguments par défaut et nommés. Les streams deviennent des opérateurs de collections directs (sans cérémonie .stream()/.collect()). Getters/setters deviennent des propriétés."
+          }
+        },
+        {
+          "type": "code",
+          "code": "// Java reflex                     // Kotlin idiom\nString n = u != null               val n = u?.name ?: \"?\"\n    ? u.getName() : \"?\";\n\nlist.stream()                      list.filter { it.active }\n    .filter(User::isActive)            .map { it.email }\n    .map(User::getEmail)\n    .collect(toList());"
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Deeper habits: stop defaulting to inheritance (Kotlin classes are final; reach for composition, sealed hierarchies or delegation); stop null-checking defensively everywhere (let types prove non-nullness once at the boundary); stop writing loops for what an operator says in one word (firstOrNull, any, sumOf, partition).",
+            "fr": "Habitudes plus profondes : cesser l'héritage par défaut (les classes Kotlin sont final ; visez composition, hiérarchies sealed ou délégation) ; cesser les null-checks défensifs partout (laissez les types prouver la non-nullité une fois à la frontière) ; cesser d'écrire des boucles pour ce qu'un opérateur dit en un mot (firstOrNull, any, sumOf, partition)."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "The inverse trap exists: over-Kotlinizing. Chained scope functions, points-free style and clever operator overloads can be harder to review than the Java they replaced. The idiom bar is: would a teammate read this faster than the boring version? If not, write the boring version.",
+            "fr": "Le piège inverse existe : sur-Kotliniser. Fonctions de portée enchaînées, style sans points et surcharges d'opérateurs astucieuses peuvent être plus dures à relire que le Java remplacé. Le critère d'idiome : un collègue lirait-il ceci plus vite que la version ennuyeuse ? Sinon, écrivez la version ennuyeuse."
+          }
+        }
+      ]
+    }
+  ],
+  "flashcards": [
+    {
+      "id": "fc-require-check-error",
+      "front": {
+        "en": "require vs check vs error: which throws what, for what?",
+        "fr": "require vs check vs error : lequel lève quoi, pour quoi ?"
+      },
+      "back": {
+        "en": "require: argument validation, IllegalArgumentException. check: object/state validation, IllegalStateException. error: unconditional IllegalStateException for unreachable branches. All take lazy message lambdas; requireNotNull/checkNotNull return the non-null value.",
+        "fr": "require : validation d'arguments, IllegalArgumentException. check : validation d'état, IllegalStateException. error : IllegalStateException inconditionnelle pour les branches inatteignables. Tous prennent des messages paresseux ; requireNotNull/checkNotNull renvoient la valeur non-nulle."
+      }
+    },
+    {
+      "id": "fc-runcatching-cancel",
+      "front": {
+        "en": "Why is runCatching dangerous around suspend calls?",
+        "fr": "Pourquoi runCatching est-il dangereux autour d'appels suspend ?"
+      },
+      "back": {
+        "en": "It catches Throwable, so it also swallows CancellationException: the coroutine appears to succeed with a failed Result while cancellation is being propagated, breaking structured concurrency. Rethrow CancellationException from the failure path, or catch specific exceptions.",
+        "fr": "Il attrape Throwable, donc avale aussi CancellationException : la coroutine semble réussir avec un Result d'échec pendant que l'annulation se propage, cassant la concurrence structurée. Relancez CancellationException depuis le chemin d'échec, ou attrapez des exceptions précises."
+      }
+    },
+    {
+      "id": "fc-error-modeling",
+      "front": {
+        "en": "Nullable return vs sealed result vs exception: the decision rule?",
+        "fr": "Retour nullable vs sealed result vs exception : la règle de décision ?"
+      },
+      "back": {
+        "en": "Absence without reason and normal: T? (find, parse-or-null). Failure carrying domain data callers must branch on: sealed hierarchy. Programming errors and unrecoverable conditions: exceptions. The signature should make the caller's obligations obvious.",
+        "fr": "Absence normale et sans raison : T? (find, parse-ou-null). Échec portant des données métier à brancher : hiérarchie sealed. Erreurs de programmation et conditions irrécupérables : exceptions. La signature doit rendre évidentes les obligations de l'appelant."
+      }
+    },
+    {
+      "id": "fc-try-expression",
+      "front": {
+        "en": "What does `val x = try { 1 } catch (e: Exception) { 2 } finally { 3 }` assign?",
+        "fr": "Que vaut `val x = try { 1 } catch (e: Exception) { 2 } finally { 3 }` ?"
+      },
+      "back": {
+        "en": "1 (or 2 on exception). finally runs but never contributes to the expression's value. Watch out: a return inside finally would override everything, a classic anti-pattern.",
+        "fr": "1 (ou 2 sur exception). finally s'exécute mais ne contribue jamais à la valeur de l'expression. Attention : un return dans finally écraserait tout, anti-pattern classique."
+      }
+    },
+    {
+      "id": "fc-val-default",
+      "front": {
+        "en": "Why is val-by-default more than a style preference?",
+        "fr": "Pourquoi val par défaut est-il plus qu'une préférence de style ?"
+      },
+      "back": {
+        "en": "Each val removes a degree of freedom reviewers must track, enables smart casts (var properties block them), makes objects safe to share across threads and coroutines, and turns accidental reassignment into a compile error. Mutation becomes a visible, deliberate choice.",
+        "fr": "Chaque val retire un degré de liberté que les relecteurs doivent suivre, permet les smart casts (les propriétés var les bloquent), rend les objets sûrs à partager entre threads et coroutines, et transforme la réaffectation accidentelle en erreur de compilation. La mutation devient un choix visible et délibéré."
+      }
+    },
+    {
+      "id": "fc-boolean-trap",
+      "front": {
+        "en": "What is the boolean trap and the Kotlin remedies?",
+        "fr": "Qu'est-ce que le piège booléen et les remèdes Kotlin ?"
+      },
+      "back": {
+        "en": "Positional boolean arguments are unreadable: copy(true, false). Remedies: named arguments (copy(recursive = true, overwrite = false)), enums for meaningful pairs, or splitting into two functions. Kotlin even lints unnamed booleans in some configurations.",
+        "fr": "Les booléens positionnels sont illisibles : copy(true, false). Remèdes : arguments nommés (copy(recursive = true, overwrite = false)), enums pour les paires signifiantes, ou scission en deux fonctions. Certaines configurations lintent même les booléens non nommés."
+      }
+    },
+    {
+      "id": "fc-avoid-bangbang",
+      "front": {
+        "en": "List the idiomatic alternatives to `!!`.",
+        "fr": "Listez les alternatives idiomatiques à `!!`."
+      },
+      "back": {
+        "en": "?. with elvis for defaults; requireNotNull/checkNotNull with a message (throws with context); ?: return / ?: error(...) as guards; restructuring so the type is non-null from the start (constructor injection, lateinit for DI frameworks). !! remains for documented invariants only.",
+        "fr": "?. avec elvis pour les défauts ; requireNotNull/checkNotNull avec message (lève avec contexte) ; ?: return / ?: error(...) en gardes ; restructurer pour que le type soit non-nul d'origine (injection par constructeur, lateinit pour les frameworks DI). !! reste pour les invariants documentés uniquement."
+      }
+    },
+    {
+      "id": "fc-no-streams",
+      "front": {
+        "en": "Why avoid .stream() in Kotlin code on collections?",
+        "fr": "Pourquoi éviter .stream() en Kotlin sur les collections ?"
+      },
+      "back": {
+        "en": "The stdlib operators work directly on collections (filter, map, groupBy) with less ceremony, better null handling and Kotlin lambdas; for laziness, asSequence() replaces streams. Streams remain for interop with Java APIs that require them or for parallel() cases.",
+        "fr": "Les opérateurs stdlib travaillent directement sur les collections (filter, map, groupBy) avec moins de cérémonie, une meilleure gestion de null et des lambdas Kotlin ; pour la paresse, asSequence() remplace les streams. Les streams restent pour l'interop avec les API Java qui les exigent ou le parallel()."
+      }
+    },
+    {
+      "id": "fc-composition-final",
+      "front": {
+        "en": "Kotlin classes are final by default. What replaces the Java inheritance reflex?",
+        "fr": "Les classes Kotlin sont final par défaut. Qu'est-ce qui remplace le réflexe d'héritage Java ?"
+      },
+      "back": {
+        "en": "Composition with class delegation (by) for is-a interfaces, sealed hierarchies for closed polymorphism, extension functions for added behavior, and higher-order functions for strategy injection. open remains an explicit, justified decision.",
+        "fr": "La composition avec délégation de classe (by) pour les interfaces is-a, les hiérarchies sealed pour le polymorphisme fermé, les extensions pour le comportement ajouté, et les fonctions d'ordre supérieur pour l'injection de stratégies. open reste une décision explicite et justifiée."
+      }
+    },
+    {
+      "id": "fc-when-subject",
+      "front": {
+        "en": "Give three when forms beyond matching constants.",
+        "fr": "Donnez trois formes de when au-delà des constantes."
+      },
+      "back": {
+        "en": "when (x) { in 1..9 -> ..., is String -> ..., else -> } (ranges and types with smart casts); subject capture when (val s = state()) { ... } to reuse s; and subject-less when { cond1 -> ..., cond2 -> ... } replacing if/else-if chains.",
+        "fr": "when (x) { in 1..9 -> ..., is String -> ..., else -> } (plages et types avec smart casts) ; capture de sujet when (val s = state()) { ... } pour réutiliser s ; et when sans sujet { cond1 -> ..., cond2 -> ... } remplaçant les chaînes if/else-if."
+      }
+    },
+    {
+      "id": "fc-result-usage",
+      "front": {
+        "en": "Where does kotlin.Result fit well, and where does it fight the language?",
+        "fr": "Où kotlin.Result s'insère-t-il bien, et où lutte-t-il contre le langage ?"
+      },
+      "back": {
+        "en": "Fits: immediate folding at boundaries (runCatching { }.getOrElse { }), storing outcomes in collections, async completion records. Fights: as a general return type (no early-return sugar, easy to forget checking, boxes on JVM in some shapes); sealed types express domain errors better.",
+        "fr": "S'insère : repli immédiat aux frontières (runCatching { }.getOrElse { }), stockage d'issues dans des collections, enregistrements de complétion asynchrone. Lutte : comme type de retour général (pas de sucre de retour anticipé, oubli de vérification facile) ; les types sealed expriment mieux les erreurs métier."
+      }
+    },
+    {
+      "id": "fc-overkotlinizing",
+      "front": {
+        "en": "What is the review-time test for whether an idiom is worth it?",
+        "fr": "Quel est le test de relecture pour savoir si un idiome vaut le coup ?"
+      },
+      "back": {
+        "en": "Would a competent teammate read the idiomatic version faster and more accurately than the boring one? Chained scope functions, exotic operators and clever DSL tricks fail this test more often than juniors expect. Optimize for the reader, not the writer.",
+        "fr": "Un collègue compétent lirait-il la version idiomatique plus vite et plus juste que la version ennuyeuse ? Fonctions de portée enchaînées, opérateurs exotiques et astuces DSL échouent à ce test plus souvent que les juniors ne le pensent. Optimisez pour le lecteur, pas l'auteur."
+      }
+    }
+  ],
+  "exercises": [
+    {
+      "id": "ex-precondition-choice",
+      "kind": "mcq",
+      "difficulty": 1,
+      "prompt": {
+        "en": "A method transfers money and must fail if the account was closed by a concurrent operation. Which guard fits?",
+        "fr": "Une méthode transfère de l'argent et doit échouer si le compte a été fermé par une opération concurrente. Quelle garde convient ?"
+      },
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "check(!account.closed) { \"account closed\" }: it validates object STATE and throws IllegalStateException",
+            "fr": "check(!account.closed) { \"account closed\" } : elle valide l'ÉTAT de l'objet et lève IllegalStateException"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "require(!account.closed) { \"account closed\" }",
+            "fr": "require(!account.closed) { \"account closed\" }"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "if (account.closed) return",
+            "fr": "if (account.closed) return"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "assert(!account.closed)",
+            "fr": "assert(!account.closed)"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "The condition concerns the receiver's state at call time, which is check's contract (IllegalStateException). require speaks about caller-provided arguments. Returning silently (c) hides a real failure; assert (d) depends on JVM -ea flags and vanishes in production.",
+        "fr": "La condition concerne l'état du récepteur au moment de l'appel, le contrat de check (IllegalStateException). require parle des arguments fournis par l'appelant. Retourner silencieusement (c) cache un vrai échec ; assert (d) dépend du drapeau JVM -ea et disparaît en production."
+      }
+    },
+    {
+      "id": "ex-runcatching-coroutine",
+      "kind": "find-bug",
+      "difficulty": 3,
+      "prompt": {
+        "en": "After cancelling this worker, it keeps polling forever. Where is the structured-concurrency bug?",
+        "fr": "Après annulation de ce worker, il continue de poller indéfiniment. Où est le bug de concurrence structurée ?"
+      },
+      "code": "val job = scope.launch {\n    while (isActive) {\n        runCatching { poll() }        // poll() is a suspend fun\n            .onFailure { log.warn(\"poll failed\", it) }\n        delay(5_000)\n    }\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "runCatching swallows the CancellationException thrown inside poll(), the loop re-checks isActive... but delay() would throw too. The insidious case: cancellation DURING poll() is logged as a failure and lost; rethrow it in onFailure",
+            "fr": "runCatching avale la CancellationException levée dans poll(), la boucle reteste isActive... mais delay() lèverait aussi. Le cas insidieux : l'annulation PENDANT poll() est loguée comme un échec et perdue ; relancez-la dans onFailure"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "while (isActive) should be while (true)",
+            "fr": "while (isActive) devrait être while (true)"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "delay must come before poll()",
+            "fr": "delay doit précéder poll()"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "onFailure cannot receive a suspend lambda",
+            "fr": "onFailure ne peut pas recevoir de lambda suspend"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "When cancel() lands while poll() is suspended, poll() throws CancellationException; runCatching converts it into a Result failure, the warning is logged, and execution continues to delay(). Whether the loop then stops depends on timing (isActive, delay throwing): fragile at best, and the cancellation signal was already misreported as an application failure. Fix: .onFailure { if (it is CancellationException) throw it; log.warn(...) }.",
+        "fr": "Quand cancel() survient pendant que poll() est suspendue, poll() lève CancellationException ; runCatching la convertit en Result d'échec, l'avertissement est logué, et l'exécution continue vers delay(). Que la boucle s'arrête ensuite dépend du timing (isActive, delay levant) : fragile au mieux, et le signal d'annulation a déjà été rapporté à tort comme un échec applicatif. Correctif : .onFailure { if (it is CancellationException) throw it; log.warn(...) }."
+      }
+    },
+    {
+      "id": "ex-try-finally-value",
+      "kind": "predict-output",
+      "difficulty": 2,
+      "prompt": {
+        "en": "What does this program print?",
+        "fr": "Qu'affiche ce programme ?"
+      },
+      "code": "fun risky(fail: Boolean): Int = try {\n    if (fail) throw IllegalStateException()\n    1\n} catch (e: IllegalStateException) {\n    2\n} finally {\n    println(\"cleanup\")\n}\n\nfun main() {\n    println(risky(false))\n    println(risky(true))\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "cleanup / 1 / cleanup / 2",
+            "fr": "cleanup / 1 / cleanup / 2"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "1 / cleanup / 2 / cleanup",
+            "fr": "1 / cleanup / 2 / cleanup"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "cleanup / cleanup (finally replaces the values)",
+            "fr": "cleanup / cleanup (finally remplace les valeurs)"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "It does not compile: try with finally cannot be an expression",
+            "fr": "Ne compile pas : un try avec finally ne peut pas être une expression"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "try/catch/finally is a valid expression; finally executes before the value is delivered to the caller but contributes nothing to it. So each call prints cleanup first (inside risky), then main prints the value: 1 without failure, 2 via the catch branch.",
+        "fr": "try/catch/finally est une expression valide ; finally s'exécute avant que la valeur soit livrée à l'appelant mais n'y contribue pas. Chaque appel affiche donc cleanup d'abord (dans risky), puis main affiche la valeur : 1 sans échec, 2 via la branche catch."
+      }
+    },
+    {
+      "id": "ex-idiomatic-rewrite",
+      "kind": "mcq",
+      "difficulty": 2,
+      "prompt": {
+        "en": "Which is the most idiomatic Kotlin rewrite of this Java-style block?",
+        "fr": "Quelle est la réécriture Kotlin la plus idiomatique de ce bloc de style Java ?"
+      },
+      "code": "var email: String? = null\nif (user != null) {\n    if (user.getProfile() != null) {\n        email = user.getProfile().getEmail()\n    }\n}\nif (email == null) {\n    email = \"unknown\"\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "val email = user?.profile?.email ?: \"unknown\"",
+            "fr": "val email = user?.profile?.email ?: \"unknown\""
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "val email = user!!.profile!!.email ?: \"unknown\"",
+            "fr": "val email = user!!.profile!!.email ?: \"unknown\""
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "var email = \"unknown\"; user?.let { u -> u.profile?.let { email = it.email ?: email } }",
+            "fr": "var email = \"unknown\"; user?.let { u -> u.profile?.let { email = it.email ?: email } }"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "val email = if (user != null && user.profile != null) user.profile.email else \"unknown\"",
+            "fr": "val email = if (user != null && user.profile != null) user.profile.email else \"unknown\""
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "Safe-call chain plus elvis collapses the nested null pyramid into one immutable declaration: exactly the pattern's intent. b crashes on null. c keeps mutation and nesting (over-Kotlinized while less clear). d may not even compile without smart casts on mutable properties, and stays wordier.",
+        "fr": "Chaîne de safe-calls plus elvis replie la pyramide de nulls en une déclaration immuable : exactement l'intention du pattern. b plante sur null. c garde mutation et imbrication (sur-Kotlinisé et moins clair). d peut même ne pas compiler sans smart casts sur propriétés mutables, et reste verbeux."
+      }
+    },
+    {
+      "id": "ex-when-forms",
+      "kind": "predict-output",
+      "difficulty": 2,
+      "prompt": {
+        "en": "What does this program print?",
+        "fr": "Qu'affiche ce programme ?"
+      },
+      "code": "fun classify(x: Any): String = when (x) {\n    in 1..9        -> \"digit\"\n    is String      -> \"text:${x.length}\"\n    10, 20, 30     -> \"round\"\n    else           -> \"other\"\n}\n\nfun main() {\n    println(classify(7))\n    println(classify(\"hi\"))\n    println(classify(20))\n    println(classify(3.14))\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "digit / text:2 / round / other",
+            "fr": "digit / text:2 / round / other"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "digit / text:2 / other / other",
+            "fr": "digit / text:2 / other / other"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "round / text:2 / round / other",
+            "fr": "round / text:2 / round / other"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "It does not compile: mixed branch kinds in one when",
+            "fr": "Ne compile pas : genres de branches mélangés dans un when"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "One when may mix ranges (in), type checks (is, with smart cast: x.length compiles), value lists and else. 7 hits the range; \"hi\" hits is String and smart-casts; 20 misses the 1..9 range (checked in order) and matches the value list; 3.14 falls to else.",
+        "fr": "Un même when peut mélanger plages (in), tests de type (is, avec smart cast : x.length compile), listes de valeurs et else. 7 touche la plage ; \"hi\" touche is String et smart-caste ; 20 rate la plage 1..9 (testée dans l'ordre) et correspond à la liste de valeurs ; 3.14 tombe dans else."
+      }
+    },
+    {
+      "id": "ex-api-signature",
+      "kind": "mcq",
+      "difficulty": 3,
+      "prompt": {
+        "en": "Which public API signature best applies the module's design defaults?",
+        "fr": "Quelle signature d'API publique applique le mieux les défauts de conception du module ?"
+      },
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "fun report(entries: List<Entry>, options: ReportOptions = ReportOptions()): Report",
+            "fr": "fun report(entries: List<Entry>, options: ReportOptions = ReportOptions()): Report"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "fun report(entries: MutableList<Entry>, compact: Boolean, headers: Boolean, ascii: Boolean): Report",
+            "fr": "fun report(entries: MutableList<Entry>, compact: Boolean, headers: Boolean, ascii: Boolean): Report"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "fun report(entries: ArrayList<Entry>, options: HashMap<String, Any>): Report",
+            "fr": "fun report(entries: ArrayList<Entry>, options: HashMap<String, Any>): Report"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "fun report(vararg entries: Entry, config: (ReportBuilder) -> Unit): Report",
+            "fr": "fun report(vararg entries: Entry, config: (ReportBuilder) -> Unit): Report"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "a accepts the read-only interface (callers pass any list, the function promises no mutation), groups flags in a typed options class with a default, and returns a domain type. b demands mutability it does not need and exhibits the boolean trap. c leaks concrete implementations and stringly-typed options. d is a DSL where data plus options suffice, and vararg forces callers with lists into spread copies.",
+        "fr": "a accepte l'interface en lecture seule (l'appelant passe toute liste, la fonction promet de ne pas muter), groupe les drapeaux dans une classe d'options typée avec défaut, et renvoie un type métier. b exige une mutabilité inutile et exhibe le piège booléen. c fuit des implémentations concrètes et des options stringly-typed. d est un DSL là où données plus options suffisent, et vararg force les appelants à listes vers des copies spread."
+      }
+    }
+  ]
+}
