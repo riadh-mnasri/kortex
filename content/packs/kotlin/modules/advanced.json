@@ -1,0 +1,561 @@
+{
+  "id": "advanced",
+  "title": { "en": "Advanced Kotlin", "fr": "Kotlin avancé" },
+  "tagline": {
+    "en": "Delegated properties, DSLs, contracts",
+    "fr": "Propriétés déléguées, DSL, contracts"
+  },
+  "icon": "🚀",
+  "lessons": [
+    {
+      "id": "delegated-properties",
+      "title": {
+        "en": "Delegated properties",
+        "fr": "Propriétés déléguées"
+      },
+      "minutes": 5,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "`val x by delegate` routes property access to the delegate's `getValue` (and `setValue` for var), both operator functions receiving the owner and a `KProperty` describing the property. The stdlib ships the big three: `lazy` (compute once on first read), `Delegates.observable` (callback after each write), `Delegates.vetoable` (callback deciding whether the write happens).",
+            "fr": "`val x by delegate` route les accès à la propriété vers le `getValue` du délégué (et `setValue` pour var), deux fonctions opérateur recevant le propriétaire et une `KProperty` décrivant la propriété. La stdlib fournit les trois grands : `lazy` (calcul unique à la première lecture), `Delegates.observable` (callback après chaque écriture), `Delegates.vetoable` (callback décidant si l'écriture a lieu)."
+          }
+        },
+        {
+          "type": "code",
+          "code": "val config: Config by lazy { loadConfig() }   // once, thread-safe\n\nvar volume: Int by Delegates.vetoable(50) { _, _, new ->\n    new in 0..100          // false rejects the write\n}\n\nclass User(props: Map<String, Any?>) {\n    val name: String by props        // map-backed property\n    val age: Int by props\n}"
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "lazy has three thread-safety modes: SYNCHRONIZED (default, one thread computes), PUBLICATION (several may compute, first result wins), NONE (no synchronization, cheapest, single-threaded only). Choose NONE for UI-thread-confined state, keep the default for anything shared.",
+            "fr": "lazy a trois modes de thread-safety : SYNCHRONIZED (défaut, un seul thread calcule), PUBLICATION (plusieurs peuvent calculer, le premier résultat gagne), NONE (aucune synchronisation, le moins cher, mono-thread uniquement). Choisissez NONE pour un état confiné au thread UI, gardez le défaut pour tout ce qui est partagé."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Custom delegates implement `operator fun getValue(thisRef, property)` (and setValue). `provideDelegate` runs once at binding time, letting you validate the property name or register it somewhere: how libraries like Gradle wire `val myTask by tasks.registering`.",
+            "fr": "Les délégués personnalisés implémentent `operator fun getValue(thisRef, property)` (et setValue). `provideDelegate` s'exécute une fois à la liaison, permettant de valider le nom de la propriété ou de l'enregistrer quelque part : c'est ainsi que Gradle câble `val myTask by tasks.registering`."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "A map-backed property throws NoSuchElementException at READ time if the key is missing: construction succeeds, the crash comes later. Fine for prototypes and dynamic payloads; for domain types, prefer real constructor parameters and fail fast.",
+            "fr": "Une propriété adossée à une map lève NoSuchElementException à la LECTURE si la clé manque : la construction réussit, le crash vient plus tard. Acceptable pour les prototypes et payloads dynamiques ; pour les types métier, préférez de vrais paramètres de constructeur et un échec immédiat."
+          }
+        }
+      ]
+    },
+    {
+      "id": "dsl-builders",
+      "title": {
+        "en": "Building DSLs",
+        "fr": "Construire des DSL"
+      },
+      "minutes": 5,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "A Kotlin DSL is three features stacked: lambdas with receiver (`Table.() -> Unit` makes `this` a Table inside the block), extension/infix functions for vocabulary, and trailing lambdas for shape. The builder creates a node, applies the user's block to it, then registers it in the parent.",
+            "fr": "Un DSL Kotlin, c'est trois fonctionnalités empilées : les lambdas avec récepteur (`Table.() -> Unit` fait de `this` une Table dans le bloc), les fonctions extension/infix pour le vocabulaire, et les trailing lambdas pour la forme. Le builder crée un noeud, applique le bloc de l'utilisateur, puis l'enregistre dans le parent."
+          }
+        },
+        {
+          "type": "code",
+          "code": "fun table(init: Table.() -> Unit): Table = Table().apply(init)\n\nclass Table {\n    private val rows = mutableListOf<Row>()\n    fun row(init: Row.() -> Unit) { rows += Row().apply(init) }\n}\n\nval report = table {\n    row { cell(\"Name\"); cell(\"Score\") }\n    row { cell(\"Riadh\"); cell(\"1450\") }\n}"
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "Nested receivers leak: inside `row { ... }`, the outer Table is still an implicit receiver, so calling row() INSIDE a row compiles and adds to the table, a structural bug. `@DslMarker` fixes it: annotate a marker annotation, put it on your builder classes, and the compiler forbids implicitly reaching an outer receiver of the same DSL.",
+            "fr": "Les récepteurs imbriqués fuient : dans `row { ... }`, la Table externe reste un récepteur implicite, appeler row() DANS une row compile et ajoute à la table, un bug structurel. `@DslMarker` corrige : annotez une annotation marqueur, posez-la sur vos classes builder, et le compilateur interdit d'atteindre implicitement un récepteur externe du même DSL."
+          }
+        },
+        {
+          "type": "code",
+          "code": "@DslMarker\nannotation class ReportDsl\n\n@ReportDsl class Table { ... }\n@ReportDsl class Row { ... }\n// now row { row { } } is a compile error; this@table.row() still allowed",
+          "caption": {
+            "en": "DslMarker turns silent scoping bugs into compile errors.",
+            "fr": "DslMarker transforme les bugs de portée silencieux en erreurs de compilation."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Return the built value from every builder function and keep builders side-effect free until the final build step: DSLs that mutate global state during construction are painful to test. kotlinx.html and Compose follow the collect-then-materialize shape.",
+            "fr": "Renvoyez la valeur construite de chaque fonction builder et gardez les builders sans effet de bord jusqu'à l'étape finale : les DSL qui mutent un état global pendant la construction sont pénibles à tester. kotlinx.html et Compose suivent la forme collecter-puis-matérialiser."
+          }
+        }
+      ]
+    },
+    {
+      "id": "contracts",
+      "title": { "en": "Contracts", "fr": "Contracts" },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "Contracts let a function tell the compiler things it cannot infer. Two families: `returns(...) implies (condition)` (if the function returns normally / returns true, the condition holds: powers smart casts across function boundaries) and `callsInPlace(lambda, InvocationKind)` (the lambda runs in place, exactly/at most/at least once).",
+            "fr": "Les contracts permettent à une fonction de dire au compilateur ce qu'il ne peut pas inférer. Deux familles : `returns(...) implies (condition)` (si la fonction retourne normalement / renvoie true, la condition tient : alimente les smart casts au-delà des frontières de fonctions) et `callsInPlace(lambda, InvocationKind)` (la lambda s'exécute sur place, exactement/au plus/au moins une fois)."
+          }
+        },
+        {
+          "type": "code",
+          "code": "fun validate(user: User?) {\n    contract { returns() implies (user != null) }\n    requireNotNull(user) { \"user required\" }\n}\n\nvalidate(input)\ninput.email   // smart-cast: non-null after validate()",
+          "caption": {
+            "en": "The stdlib's require, check and requireNotNull already declare these contracts.",
+            "fr": "require, check et requireNotNull de la stdlib déclarent déjà ces contracts."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "callsInPlace(block, InvocationKind.EXACTLY_ONCE) is why `val x: Int; run { x = 1 }` compiles: the compiler accepts assigning a val inside the lambda because the contract guarantees single, in-place execution. All standard scope functions declare it; your own higher-order functions can too.",
+            "fr": "callsInPlace(block, InvocationKind.EXACTLY_ONCE) est la raison pour laquelle `val x: Int; run { x = 1 }` compile : le compilateur accepte d'affecter un val dans la lambda car le contract garantit une exécution unique et sur place. Toutes les fonctions de portée standard le déclarent ; vos propres fonctions d'ordre supérieur le peuvent aussi."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "Contracts are declared, not verified: the compiler TRUSTS your contract block. A wrong contract (claiming EXACTLY_ONCE while calling the lambda twice) produces unsound code with no warning. Treat contracts like unsafe casts: small, audited, tested.",
+            "fr": "Les contracts sont déclarés, pas vérifiés : le compilateur FAIT CONFIANCE à votre bloc contract. Un contract faux (annoncer EXACTLY_ONCE en appelant la lambda deux fois) produit du code non sûr sans avertissement. Traitez les contracts comme des casts unsafe : petits, audités, testés."
+          }
+        }
+      ]
+    },
+    {
+      "id": "annotations-reflection",
+      "title": {
+        "en": "Annotations & reflection",
+        "fr": "Annotations & réflexion"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "Declare annotations with `annotation class Route(val path: String)`; meta-annotations control usage: @Target, @Retention (SOURCE, BINARY, RUNTIME), @Repeatable. Only RUNTIME-retained annotations are visible to reflection, the usual mistake behind \"my framework ignores my annotation\".",
+            "fr": "Déclarez les annotations avec `annotation class Route(val path: String)` ; les méta-annotations contrôlent l'usage : @Target, @Retention (SOURCE, BINARY, RUNTIME), @Repeatable. Seules les annotations retenues RUNTIME sont visibles par réflexion, l'erreur habituelle derrière \"mon framework ignore mon annotation\"."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "One Kotlin property compiles to up to four JVM elements: field, getter, setter, constructor parameter. Use-site targets aim the annotation: `@field:JsonIgnore` (the field), `@get:JvmName` (the getter), `@param:Inject` (the constructor parameter). Without a target, a priority list applies (param, then property, then field) and Java frameworks may not see what you expect.",
+            "fr": "Une propriété Kotlin compile vers jusqu'à quatre éléments JVM : champ, getter, setter, paramètre de constructeur. Les cibles de site d'usage visent l'annotation : `@field:JsonIgnore` (le champ), `@get:JvmName` (le getter), `@param:Inject` (le paramètre de constructeur). Sans cible, une liste de priorité s'applique (param, puis property, puis field) et les frameworks Java peuvent ne pas voir ce que vous attendez."
+          }
+        },
+        {
+          "type": "code",
+          "code": "data class Payload(\n    @field:JsonProperty(\"user_id\") val userId: Long,\n    @get:Deprecated(\"use userId\") val legacyId: Long,\n)\n\nval prop: KProperty1<Payload, Long> = Payload::userId\nprintln(prop.name)                  // \"userId\"\nPayload::class.memberProperties     // full runtime introspection"
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "kotlin-reflect is a separate, sizable dependency; KClass basics (simpleName, isInstance) work without it, but memberProperties, callBy and friends need it and are slow relative to direct calls. In hot paths, prefer generated code (kapt/KSP) or cached MethodHandles over per-call reflection.",
+            "fr": "kotlin-reflect est une dépendance séparée et lourde ; les bases de KClass (simpleName, isInstance) marchent sans, mais memberProperties, callBy et consorts l'exigent et sont lents relativement aux appels directs. Dans les chemins chauds, préférez du code généré (kapt/KSP) ou des MethodHandles en cache à la réflexion par appel."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Property references are typed and refactor-safe: `Payload::userId` survives renames where the string \"userId\" would not. APIs taking KProperty1 (validation, ORM column mapping) get compile-time safety for free.",
+            "fr": "Les références de propriétés sont typées et sûres au refactoring : `Payload::userId` survit aux renommages là où la chaîne \"userId\" casserait. Les API prenant KProperty1 (validation, mapping ORM) gagnent la sûreté de compilation gratuitement."
+          }
+        }
+      ]
+    }
+  ],
+  "flashcards": [
+    {
+      "id": "fc-lazy-modes",
+      "front": {
+        "en": "The three thread-safety modes of lazy, and when to deviate from the default?",
+        "fr": "Les trois modes de thread-safety de lazy, et quand dévier du défaut ?"
+      },
+      "back": {
+        "en": "SYNCHRONIZED (default): one thread computes, others wait. PUBLICATION: concurrent computes allowed, first result wins (initializer must be side-effect free). NONE: zero cost, undefined under concurrency; only for thread-confined state.",
+        "fr": "SYNCHRONIZED (défaut) : un thread calcule, les autres attendent. PUBLICATION : calculs concurrents permis, premier résultat gagne (initialiseur sans effet de bord). NONE : coût nul, indéfini en concurrence ; uniquement pour un état confiné à un thread."
+      }
+    },
+    {
+      "id": "fc-observable-vetoable",
+      "front": {
+        "en": "Delegates.observable vs Delegates.vetoable?",
+        "fr": "Delegates.observable vs Delegates.vetoable ?"
+      },
+      "back": {
+        "en": "observable: callback AFTER the write, cannot prevent it; for reacting (UI refresh, dirty flags). vetoable: callback BEFORE, returning false cancels the write silently; for validation-style properties.",
+        "fr": "observable : callback APRÈS l'écriture, sans pouvoir l'empêcher ; pour réagir (rafraîchir l'UI, drapeaux dirty). vetoable : callback AVANT, renvoyer false annule l'écriture silencieusement ; pour des propriétés à validation."
+      }
+    },
+    {
+      "id": "fc-custom-delegate",
+      "front": {
+        "en": "What must a custom property delegate implement?",
+        "fr": "Que doit implémenter un délégué de propriété personnalisé ?"
+      },
+      "back": {
+        "en": "operator fun getValue(thisRef: T, property: KProperty<*>): V, plus setValue for var. Optionally provideDelegate to intercept binding (validate/register the property once at declaration). Interfaces ReadOnlyProperty/ReadWriteProperty formalize the shape.",
+        "fr": "operator fun getValue(thisRef: T, property: KProperty<*>): V, plus setValue pour var. Optionnellement provideDelegate pour intercepter la liaison (valider/enregistrer la propriété à la déclaration). Les interfaces ReadOnlyProperty/ReadWriteProperty formalisent la forme."
+      }
+    },
+    {
+      "id": "fc-map-delegate",
+      "front": {
+        "en": "What is the failure mode of `val name: String by map`?",
+        "fr": "Quel est le mode d'échec de `val name: String by map` ?"
+      },
+      "back": {
+        "en": "Missing key or wrong type fails at first READ (NoSuchElementException / ClassCastException), not at construction: objects can exist in an invalid state until touched. Reserve map delegation for dynamic payloads, not core domain types.",
+        "fr": "Clé manquante ou mauvais type échoue à la première LECTURE (NoSuchElementException / ClassCastException), pas à la construction : l'objet peut exister dans un état invalide jusqu'au premier accès. Réservez la délégation par map aux payloads dynamiques, pas aux types métier."
+      }
+    },
+    {
+      "id": "fc-lambda-receiver-dsl",
+      "front": {
+        "en": "Which single language feature makes `html { body { } }` possible?",
+        "fr": "Quelle fonctionnalité unique du langage rend `html { body { } }` possible ?"
+      },
+      "back": {
+        "en": "Function types with receiver: init: HtmlBuilder.() -> Unit. Inside the block, this is the builder, so its methods are callable bare. Combined with trailing lambda syntax, calls read like declarative markup.",
+        "fr": "Les types fonction avec récepteur : init: HtmlBuilder.() -> Unit. Dans le bloc, this est le builder, ses méthodes s'appellent nues. Combiné à la syntaxe trailing lambda, l'appel se lit comme du balisage déclaratif."
+      }
+    },
+    {
+      "id": "fc-dslmarker",
+      "front": {
+        "en": "What problem does @DslMarker solve?",
+        "fr": "Quel problème @DslMarker résout-il ?"
+      },
+      "back": {
+        "en": "Implicit receiver leakage in nested DSL blocks: without it, an inner block can silently call methods of an OUTER builder (row inside row adds to the table). With the marker on both builder classes, only the nearest receiver is implicit; outer access must be explicit (this@table).",
+        "fr": "La fuite de récepteur implicite dans les blocs DSL imbriqués : sans lui, un bloc interne peut appeler silencieusement les méthodes d'un builder EXTERNE (row dans row ajoute à la table). Avec le marqueur sur les deux classes, seul le récepteur le plus proche est implicite ; l'accès externe doit être explicite (this@table)."
+      }
+    },
+    {
+      "id": "fc-contract-returns",
+      "front": {
+        "en": "How does requireNotNull(x) make x smart-cast afterward?",
+        "fr": "Comment requireNotNull(x) rend-il x smart-casté ensuite ?"
+      },
+      "back": {
+        "en": "It declares the contract returns() implies (value != null): if the function returns normally, the compiler may assume the condition. Smart casts thus cross a function boundary that inference alone could not see through.",
+        "fr": "Elle déclare le contract returns() implies (value != null) : si la fonction retourne normalement, le compilateur peut supposer la condition. Le smart cast traverse ainsi une frontière de fonction que l'inférence seule ne voyait pas."
+      }
+    },
+    {
+      "id": "fc-callsinplace",
+      "front": {
+        "en": "Why does `val x: Int; run { x = 1 }; println(x)` compile?",
+        "fr": "Pourquoi `val x: Int; run { x = 1 }; println(x)` compile-t-il ?"
+      },
+      "back": {
+        "en": "run declares callsInPlace(block, EXACTLY_ONCE): the compiler knows the lambda executes exactly once, immediately, so the val is definitely assigned exactly once. Without the contract, assigning a val in a lambda is rejected.",
+        "fr": "run déclare callsInPlace(block, EXACTLY_ONCE) : le compilateur sait que la lambda s'exécute exactement une fois, immédiatement, donc le val est définitivement affecté une fois. Sans le contract, affecter un val dans une lambda est rejeté."
+      }
+    },
+    {
+      "id": "fc-contract-trust",
+      "front": {
+        "en": "Are contracts verified by the compiler?",
+        "fr": "Les contracts sont-ils vérifiés par le compilateur ?"
+      },
+      "back": {
+        "en": "No: they are trusted declarations. A false contract (wrong InvocationKind, wrong implication) silently produces unsound smart casts or broken definite-assignment analysis. Keep contract-bearing functions tiny and reviewed.",
+        "fr": "Non : ce sont des déclarations de confiance. Un contract faux (mauvais InvocationKind, mauvaise implication) produit silencieusement des smart casts non sûrs ou une analyse d'affectation cassée. Gardez les fonctions à contract minuscules et relues."
+      }
+    },
+    {
+      "id": "fc-usesite-targets",
+      "front": {
+        "en": "Why does @JsonProperty sometimes need the @field: prefix in Kotlin?",
+        "fr": "Pourquoi @JsonProperty a-t-il parfois besoin du préfixe @field: en Kotlin ?"
+      },
+      "back": {
+        "en": "A constructor property compiles to param + field + getter; without a use-site target the annotation lands on the parameter first, where field-oriented Java frameworks do not look. @field: (or @get:) aims it at the element the framework actually reads.",
+        "fr": "Une propriété de constructeur compile en param + champ + getter ; sans cible de site d'usage l'annotation atterrit d'abord sur le paramètre, là où les frameworks Java orientés champs ne regardent pas. @field: (ou @get:) la vise sur l'élément réellement lu par le framework."
+      }
+    },
+    {
+      "id": "fc-retention",
+      "front": {
+        "en": "Your custom annotation is invisible to reflection at runtime. First thing to check?",
+        "fr": "Votre annotation personnalisée est invisible par réflexion à l'exécution. Premier point à vérifier ?"
+      },
+      "back": {
+        "en": "@Retention: it must be AnnotationRetention.RUNTIME to survive into the loaded class. Kotlin's default IS runtime, but a copied SOURCE/BINARY retention (or an annotation processor consuming it at compile time) hides it from runtime reflection.",
+        "fr": "@Retention : elle doit être AnnotationRetention.RUNTIME pour survivre dans la classe chargée. Le défaut Kotlin EST runtime, mais une rétention SOURCE/BINARY copiée (ou un processeur d'annotations la consommant à la compilation) la cache à la réflexion."
+      }
+    },
+    {
+      "id": "fc-reflection-cost",
+      "front": {
+        "en": "What are the costs of kotlin-reflect and the alternatives in hot paths?",
+        "fr": "Quels sont les coûts de kotlin-reflect et les alternatives dans les chemins chauds ?"
+      },
+      "back": {
+        "en": "A multi-MB dependency, slow metadata parsing on first access, and per-call overhead versus direct invocation. Alternatives: compile-time generation (KSP/kapt), cached Method/VarHandle lookups, or plain interfaces. Basic KClass info needs no kotlin-reflect.",
+        "fr": "Une dépendance de plusieurs Mo, un parsing de métadonnées lent au premier accès, et un surcoût par appel face à l'invocation directe. Alternatives : génération à la compilation (KSP/kapt), Method/VarHandle en cache, ou de simples interfaces. Les infos KClass de base n'exigent pas kotlin-reflect."
+      }
+    }
+  ],
+  "exercises": [
+    {
+      "id": "ex-lazy-once",
+      "kind": "predict-output",
+      "difficulty": 1,
+      "prompt": {
+        "en": "What does this program print?",
+        "fr": "Qu'affiche ce programme ?"
+      },
+      "code": "val token: String by lazy {\n    println(\"computing\")\n    \"tok-42\"\n}\n\nfun main() {\n    println(\"start\")\n    println(token)\n    println(token)\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "computing / start / tok-42 / tok-42",
+            "fr": "computing / start / tok-42 / tok-42"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "start / computing / tok-42 / tok-42",
+            "fr": "start / computing / tok-42 / tok-42"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "start / computing / tok-42 / computing / tok-42",
+            "fr": "start / computing / tok-42 / computing / tok-42"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "start / tok-42 / tok-42",
+            "fr": "start / tok-42 / tok-42"
+          }
+        }
+      ],
+      "answerId": "b",
+      "explanation": {
+        "en": "lazy defers the initializer to the first read: \"start\" prints before \"computing\". The second read returns the cached value without re-running the block. Contrast with a val initializer (runs at declaration) and a custom getter (runs every read).",
+        "fr": "lazy diffère l'initialiseur à la première lecture : \"start\" s'affiche avant \"computing\". La seconde lecture renvoie la valeur en cache sans réexécuter le bloc. À comparer avec un initialiseur de val (à la déclaration) et un getter personnalisé (à chaque lecture)."
+      }
+    },
+    {
+      "id": "ex-vetoable",
+      "kind": "predict-output",
+      "difficulty": 2,
+      "prompt": {
+        "en": "What does this program print?",
+        "fr": "Qu'affiche ce programme ?"
+      },
+      "code": "var score: Int by Delegates.vetoable(0) { _, old, new ->\n    new > old\n}\n\nfun main() {\n    score = 10\n    score = 5\n    score = 20\n    println(score)\n}",
+      "choices": [
+        { "id": "a", "label": { "en": "20", "fr": "20" } },
+        { "id": "b", "label": { "en": "5", "fr": "5" } },
+        { "id": "c", "label": { "en": "35", "fr": "35" } },
+        {
+          "id": "d",
+          "label": {
+            "en": "It throws IllegalArgumentException on score = 5",
+            "fr": "Ça lève IllegalArgumentException sur score = 5"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "vetoable rejects writes whose callback returns false, silently. 10 > 0: accepted. 5 > 10 is false: rejected, score stays 10 with no exception. 20 > 10: accepted. Final value 20. The silence is the point to remember: vetoable never throws by itself.",
+        "fr": "vetoable rejette silencieusement les écritures dont le callback renvoie false. 10 > 0 : acceptée. 5 > 10 est faux : rejetée, score reste 10 sans exception. 20 > 10 : acceptée. Valeur finale 20. Le silence est le point à retenir : vetoable ne lève jamais par lui-même."
+      }
+    },
+    {
+      "id": "ex-dsl-leak",
+      "kind": "find-bug",
+      "difficulty": 3,
+      "prompt": {
+        "en": "This menu DSL builds a weird structure: sub-items appear at the top level. Why?",
+        "fr": "Ce DSL de menu construit une structure bizarre : des sous-items apparaissent au premier niveau. Pourquoi ?"
+      },
+      "code": "class MenuBuilder {\n    val items = mutableListOf<Item>()\n    fun item(label: String, init: MenuBuilder.() -> Unit = {}) {\n        items += Item(label)\n        MenuBuilder().init()   // children collected... where?\n    }\n}\n\nmenu {\n    item(\"File\") {\n        item(\"Open\")    // lands in the TOP menu\n        item(\"Save\")\n    }\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "Two bugs: the child builder's items are discarded, and without @DslMarker the inner item(...) calls resolve on the OUTER builder receiver. Attach children to the parent and mark the DSL",
+            "fr": "Deux bugs : les items du builder enfant sont jetés, et sans @DslMarker les item(...) internes se résolvent sur le récepteur EXTERNE. Rattachez les enfants au parent et marquez le DSL"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "item cannot take a default value for init",
+            "fr": "item ne peut pas donner une valeur par défaut à init"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "MutableList cannot be used inside a DSL builder",
+            "fr": "MutableList ne peut pas être utilisée dans un builder DSL"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "The lambda type must be () -> Unit, not MenuBuilder.() -> Unit",
+            "fr": "Le type de lambda doit être () -> Unit, pas MenuBuilder.() -> Unit"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "MenuBuilder().init() creates a child builder, fills it, then drops it: nothing links children to their Item. And because the inner lambda still sees the outer MenuBuilder as an implicit receiver, item(\"Open\") resolves on the outer builder when the (discarded) inner one is not the closest match. Fix: Item(label, MenuBuilder().apply(init).items), and add a @DslMarker annotation so leaking receivers become compile errors.",
+        "fr": "MenuBuilder().init() crée un builder enfant, le remplit, puis le jette : rien ne relie les enfants à leur Item. Et comme la lambda interne voit toujours le MenuBuilder externe en récepteur implicite, item(\"Open\") se résout sur le builder externe. Correctif : Item(label, MenuBuilder().apply(init).items), plus une annotation @DslMarker pour que les fuites de récepteur deviennent des erreurs de compilation."
+      }
+    },
+    {
+      "id": "ex-contract-val",
+      "kind": "mcq",
+      "difficulty": 2,
+      "prompt": {
+        "en": "Why does the compiler accept assigning the val inside the lambda below?",
+        "fr": "Pourquoi le compilateur accepte-t-il l'affectation du val dans la lambda ci-dessous ?"
+      },
+      "code": "fun main() {\n    val config: Config\n    run {\n        config = loadConfig()\n    }\n    println(config.port)\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "run declares callsInPlace(block, EXACTLY_ONCE): definite assignment analysis knows the lambda runs exactly once, in place",
+            "fr": "run déclare callsInPlace(block, EXACTLY_ONCE) : l'analyse d'affectation définitive sait que la lambda s'exécute exactement une fois, sur place"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "vals may always be assigned inside lambdas",
+            "fr": "les val peuvent toujours être affectés dans les lambdas"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "run is a compiler intrinsic with special syntax rules",
+            "fr": "run est un intrinsèque du compilateur avec des règles spéciales"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "It does not compile; a var is required",
+            "fr": "Ça ne compile pas ; il faut un var"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "Without the contract, the compiler cannot know whether the lambda runs zero, one or many times, so assigning a val inside would be rejected. run's callsInPlace EXACTLY_ONCE contract makes the assignment provably unique. Your own inline helpers can declare the same contract to allow this pattern.",
+        "fr": "Sans le contract, le compilateur ignore si la lambda s'exécute zéro, une ou plusieurs fois, l'affectation d'un val serait rejetée. Le contract callsInPlace EXACTLY_ONCE de run rend l'affectation prouvablement unique. Vos propres helpers inline peuvent déclarer le même contract pour permettre ce pattern."
+      }
+    },
+    {
+      "id": "ex-jackson-target",
+      "kind": "find-bug",
+      "difficulty": 2,
+      "prompt": {
+        "en": "Jackson serializes this class with the wrong field name despite the annotation. Why?",
+        "fr": "Jackson sérialise cette classe avec le mauvais nom de champ malgré l'annotation. Pourquoi ?"
+      },
+      "code": "data class Event(\n    @JsonProperty(\"event_type\") val type: String,\n)\n// output: {\"type\": \"...\"} instead of {\"event_type\": \"...\"}\n// (the project does NOT use the jackson-module-kotlin)",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "Without a use-site target the annotation goes to the constructor PARAMETER; plain Jackson reads fields/getters. Write @field:JsonProperty(\"event_type\") or add jackson-module-kotlin which reads parameters",
+            "fr": "Sans cible de site d'usage l'annotation va au PARAMÈTRE de constructeur ; Jackson nu lit champs/getters. Écrivez @field:JsonProperty(\"event_type\") ou ajoutez jackson-module-kotlin qui lit les paramètres"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "data classes cannot be serialized by Jackson",
+            "fr": "les data classes ne peuvent pas être sérialisées par Jackson"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "JsonProperty only works on var properties",
+            "fr": "JsonProperty ne fonctionne que sur les propriétés var"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "The annotation must be on the class, not the property",
+            "fr": "L'annotation doit être sur la classe, pas la propriété"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "For constructor properties, an untargeted annotation is applied to the parameter (first in the default priority param > property > field). Field-scanning Java frameworks never see it. @field: retargets it to the generated backing field; jackson-module-kotlin solves it framework-side by understanding Kotlin metadata. The same story explains many @Inject/@Autowired surprises.",
+        "fr": "Pour les propriétés de constructeur, une annotation non ciblée s'applique au paramètre (premier dans la priorité param > property > field). Les frameworks Java scannant les champs ne la voient jamais. @field: la recible vers le backing field généré ; jackson-module-kotlin résout le problème côté framework en comprenant les métadonnées Kotlin. La même histoire explique bien des surprises @Inject/@Autowired."
+      }
+    },
+    {
+      "id": "ex-provide-delegate",
+      "kind": "mcq",
+      "difficulty": 3,
+      "prompt": {
+        "en": "You want `val apiKey by env()` to FAIL AT STARTUP (not first read) when the variable is missing. Which mechanism?",
+        "fr": "Vous voulez que `val apiKey by env()` ÉCHOUE AU DÉMARRAGE (pas à la première lecture) si la variable manque. Quel mécanisme ?"
+      },
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "operator fun provideDelegate: it runs once at property binding, can check the environment using the property name and throw immediately",
+            "fr": "operator fun provideDelegate : il s'exécute une fois à la liaison de la propriété, peut vérifier l'environnement via le nom de la propriété et lever immédiatement"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "getValue with a lazy inside",
+            "fr": "getValue avec un lazy à l'intérieur"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "An init block in the delegate class",
+            "fr": "Un bloc init dans la classe du délégué"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "A contract returns() implies on env()",
+            "fr": "Un contract returns() implies sur env()"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "provideDelegate intercepts the by-binding itself: it receives thisRef and the KProperty (so it knows the name \"apiKey\"), validates, and returns the actual delegate or throws at class initialization. getValue-based checks (b) and init blocks (c) cannot see the property name at binding time; env() alone runs before the name is known.",
+        "fr": "provideDelegate intercepte la liaison by elle-même : il reçoit thisRef et la KProperty (il connaît donc le nom \"apiKey\"), valide, et renvoie le vrai délégué ou lève à l'initialisation de la classe. Les vérifications dans getValue (b) et les blocs init (c) ne voient pas le nom à la liaison ; env() seul s'exécute avant que le nom soit connu."
+      }
+    }
+  ]
+}

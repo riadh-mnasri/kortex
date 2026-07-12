@@ -18,6 +18,7 @@ import generics from "@/content/packs/kotlin/modules/generics.json";
 import collections from "@/content/packs/kotlin/modules/collections.json";
 import scopeFunctions from "@/content/packs/kotlin/modules/scope-functions.json";
 import coroutines from "@/content/packs/kotlin/modules/coroutines.json";
+import advanced from "@/content/packs/kotlin/modules/advanced.json";
 
 export const pack = packManifest as unknown as Pack;
 
@@ -30,6 +31,7 @@ const modules: Record<string, Module> = {
   [collections.id]: collections as unknown as Module,
   [scopeFunctions.id]: scopeFunctions as unknown as Module,
   [coroutines.id]: coroutines as unknown as Module,
+  [advanced.id]: advanced as unknown as Module,
 };
 
 export function getModule(id: string): Module | undefined {
