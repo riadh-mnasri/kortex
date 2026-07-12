@@ -1,0 +1,493 @@
+{
+  "id": "whats-new",
+  "title": { "en": "What's new in Kotlin", "fr": "Nouveautés Kotlin" },
+  "tagline": {
+    "en": "K2, Kotlin 2.x features, context parameters",
+    "fr": "K2, fonctionnalités Kotlin 2.x, context parameters"
+  },
+  "icon": "✨",
+  "lessons": [
+    {
+      "id": "k2-kotlin20",
+      "title": {
+        "en": "Kotlin 2.0 & the K2 compiler",
+        "fr": "Kotlin 2.0 & le compilateur K2"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "Kotlin 2.0 shipped K2, a full compiler front-end rewrite: one unified data flow engine for all targets, roughly twice-as-fast compilation on large projects, and a stricter, more capable analysis. Language semantics stayed compatible; what changed for daily code is mostly SMARTER SMART CASTS.",
+            "fr": "Kotlin 2.0 a livré K2, une réécriture complète du front-end du compilateur : un moteur d'analyse de flux unifié pour toutes les cibles, une compilation environ deux fois plus rapide sur les gros projets, et une analyse plus stricte et plus capable. La sémantique du langage reste compatible ; ce qui change au quotidien, ce sont surtout des SMART CASTS PLUS INTELLIGENTS."
+          }
+        },
+        {
+          "type": "code",
+          "code": "// Smart casts K2 handles that the old front-end refused:\nval status: Any = load()\nif (status is Error || status is Timeout) {\n    log(status.reason)      // common supertype members: OK in K2\n}\n\nval action: (() -> Unit)? = pick()\nif (action != null) run(action)   // captured non-null flows into lambdas",
+          "caption": {
+            "en": "K2 propagates facts through || unions, closures and inline lambda bodies.",
+            "fr": "K2 propage les faits à travers les unions ||, les closures et les lambdas inline."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "K2 is also stricter: code that compiled by accident (unsound smart casts, some platform-type leniencies, exotic override shapes) now errors. When migrating an old codebase, treat new K2 errors as latent bugs surfaced, not compiler regressions.",
+            "fr": "K2 est aussi plus strict : du code qui compilait par accident (smart casts non sûrs, certaines tolérances de platform types, formes d'override exotiques) est désormais en erreur. En migrant une vieille base, traitez les nouvelles erreurs K2 comme des bugs latents révélés, pas des régressions du compilateur."
+          }
+        }
+      ]
+    },
+    {
+      "id": "kotlin21-features",
+      "title": {
+        "en": "Kotlin 2.1: guards, interpolation, control flow",
+        "fr": "Kotlin 2.1 : gardes, interpolation, flux de contrôle"
+      },
+      "minutes": 5,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "Guard conditions in when (2.1, stable in 2.2): a branch can pair a pattern with an extra boolean using `if`, keeping one flat when where nested ifs used to grow. The guard sees the smart-cast subject.",
+            "fr": "Les guard conditions dans when (2.1, stables en 2.2) : une branche peut associer un motif et un booléen supplémentaire via `if`, gardant un when plat là où des if imbriqués proliféraient. La garde voit le sujet smart-casté."
+          }
+        },
+        {
+          "type": "code",
+          "code": "fun describe(response: Response) = when (response) {\n    is Success if response.body.isEmpty() -> \"empty payload\"\n    is Success                            -> \"ok: ${response.body.size}\"\n    is Failure if response.retryable      -> \"will retry\"\n    is Failure                            -> \"gave up\"\n}",
+          "caption": {
+            "en": "Pattern plus guard: the branch order still decides on overlap.",
+            "fr": "Motif plus garde : l'ordre des branches tranche toujours les recouvrements."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Multi-dollar interpolation (2.1) tames literal dollars: prefixing a string with $$ (or more) raises the interpolation trigger to $$, so single $ stays literal. Perfect for JSON-path, Angular-style templates, GraphQL or regexes full of $ that previously needed ${'$'} contortions.",
+            "fr": "L'interpolation multi-dollar (2.1) dompte les dollars littéraux : préfixer une chaîne par $$ (ou plus) élève le déclencheur d'interpolation à $$, le $ simple restant littéral. Parfait pour JSON-path, les templates façon Angular, GraphQL ou les regex pleines de $ qui exigeaient les contorsions ${'$'}."
+          }
+        },
+        {
+          "type": "code",
+          "code": "val query = $$\"\"\"\n    { \"filter\": \"$price > 100\", \"page\": $$pageIndex }\n\"\"\"\n// $price is literal; $$pageIndex interpolates"
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Non-local break and continue (2.1): inside a lambda passed to an inline function, break/continue can now target the enclosing loop, completing the picture that non-local return started. `while (queue.isNotEmpty()) { queue.poll().takeIf { validate(it) } ?: continue }` style code becomes legal across inline helpers.",
+            "fr": "break et continue non-locaux (2.1) : dans une lambda passée à une fonction inline, break/continue peuvent désormais viser la boucle englobante, complétant le tableau ouvert par le return non-local. Le style `while (queue.isNotEmpty()) { queue.poll().takeIf { validate(it) } ?: continue }` devient légal à travers les helpers inline."
+          }
+        }
+      ]
+    },
+    {
+      "id": "kotlin22-context",
+      "title": {
+        "en": "Kotlin 2.2: context parameters",
+        "fr": "Kotlin 2.2 : context parameters"
+      },
+      "minutes": 5,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "Context parameters (beta in 2.2, replacing the abandoned context receivers experiment) declare dependencies a function needs from its CALLING CONTEXT rather than its argument list: `context(logger: Logger) fun sync()`. The caller must have a matching value in scope (itself a context parameter, or provided via the `context(...)` function); the callee uses it by name.",
+            "fr": "Les context parameters (beta en 2.2, remplaçant l'expérimentation abandonnée des context receivers) déclarent des dépendances qu'une fonction attend de son CONTEXTE D'APPEL plutôt que de sa liste d'arguments : `context(logger: Logger) fun sync()`. L'appelant doit avoir une valeur correspondante en portée (elle-même context parameter, ou fournie via la fonction `context(...)`) ; l'appelé l'utilise par son nom."
+          }
+        },
+        {
+          "type": "code",
+          "code": "context(tx: Transaction, log: Logger)\nfun transfer(from: Account, to: Account, amount: Money) {\n    log.info(\"transfer $amount\")\n    tx.execute { ... }\n}\n\n// call site\ncontext(currentTx, appLogger) {\n    transfer(a, b, Money(100))\n}",
+          "caption": {
+            "en": "Capabilities flow implicitly; business data stays in the signature.",
+            "fr": "Les capacités circulent implicitement ; les données métier restent dans la signature."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Why it matters: it separates capabilities (transaction, logger, clock, tenant) from data, avoids threading the same parameter through ten layers, and unlike an extension receiver it does not steal `this` and composes (several contexts at once). Overuse risk: implicit dependencies hurt readability; reserve contexts for genuinely ambient things.",
+            "fr": "Pourquoi c'est important : cela sépare les capacités (transaction, logger, horloge, tenant) des données, évite de faufiler le même paramètre à travers dix couches, et contrairement à un récepteur d'extension ne vole pas `this` et se compose (plusieurs contextes à la fois). Risque d'abus : les dépendances implicites nuisent à la lisibilité ; réservez les contextes aux choses vraiment ambiantes."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "Beta features require explicit opt-in (compiler flag -Xcontext-parameters) and may still change; the older context receivers syntax `context(Logger)` without a name is gone. Keep beta syntax out of published library APIs until stabilization.",
+            "fr": "Les fonctionnalités beta exigent un opt-in explicite (drapeau compilateur -Xcontext-parameters) et peuvent encore changer ; l'ancienne syntaxe context receivers `context(Logger)` sans nom a disparu. Gardez la syntaxe beta hors des API de bibliothèques publiées jusqu'à stabilisation."
+          }
+        }
+      ]
+    },
+    {
+      "id": "staying-current",
+      "title": {
+        "en": "Tracking the language",
+        "fr": "Suivre le langage"
+      },
+      "minutes": 3,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "Kotlin features graduate through stability levels: Experimental (may vanish), Alpha/Beta (syntax may change, opt-in required), Stable (compatibility guaranteed). Code opts in with @OptIn(SomeApi::class) or propagates the requirement with the marker annotation itself. Compiler flags gate pre-stable LANGUAGE features.",
+            "fr": "Les fonctionnalités Kotlin graduent par niveaux de stabilité : Experimental (peut disparaître), Alpha/Beta (la syntaxe peut changer, opt-in requis), Stable (compatibilité garantie). Le code s'opt-in avec @OptIn(SomeApi::class) ou propage l'exigence avec l'annotation marqueur. Des drapeaux compilateur gardent les fonctionnalités de LANGAGE pré-stables."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Where to watch: the Kotlin blog for release announcements, the What's New page per version in the docs, KEEP on GitHub for upcoming design (proposals with full rationale), and the YouTrack roadmap. This module is regenerated from those sources whenever a new stable release lands; the covered version lives in the pack's version.json.",
+            "fr": "Où regarder : le blog Kotlin pour les annonces de release, la page What's New par version dans la doc, KEEP sur GitHub pour le design à venir (propositions avec justification complète), et la roadmap YouTrack. Ce module est régénéré depuis ces sources à chaque release stable ; la version couverte vit dans le version.json du pack."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Reading a KEEP before a feature ships is the highest-leverage habit for staying expert: you learn the motivation and the rejected alternatives, so the syntax feels inevitable instead of arbitrary when it arrives.",
+            "fr": "Lire un KEEP avant la sortie d'une fonctionnalité est l'habitude au meilleur levier pour rester expert : on apprend la motivation et les alternatives rejetées, la syntaxe paraît inévitable plutôt qu'arbitraire à son arrivée."
+          }
+        }
+      ]
+    }
+  ],
+  "flashcards": [
+    {
+      "id": "fc-k2-what",
+      "front": {
+        "en": "What is K2 and what changed for everyday code?",
+        "fr": "Qu'est-ce que K2 et qu'est-ce qui change au quotidien ?"
+      },
+      "back": {
+        "en": "The rewritten compiler front-end shipped as default in Kotlin 2.0: unified analysis for all targets, roughly 2x faster large builds, and smarter smart casts (through || unions, closures, inline lambdas). Also stricter: accidentally-compiling unsound code now errors.",
+        "fr": "Le front-end réécrit du compilateur, par défaut depuis Kotlin 2.0 : analyse unifiée pour toutes les cibles, gros builds environ 2x plus rapides, et smart casts plus intelligents (unions ||, closures, lambdas inline). Aussi plus strict : le code non sûr qui compilait par accident est désormais en erreur."
+      }
+    },
+    {
+      "id": "fc-guard-syntax",
+      "front": {
+        "en": "Write a when branch matching Success whose body is empty (guard syntax).",
+        "fr": "Écrivez une branche when qui matche Success au corps vide (syntaxe de garde)."
+      },
+      "back": {
+        "en": "is Success if response.body.isEmpty() -> ... : pattern, then if, then the extra condition; the guard sees the smart-cast subject. Introduced in 2.1, stable in 2.2. Order still matters for overlapping branches.",
+        "fr": "is Success if response.body.isEmpty() -> ... : motif, puis if, puis la condition supplémentaire ; la garde voit le sujet smart-casté. Introduit en 2.1, stable en 2.2. L'ordre compte toujours pour les branches qui se recouvrent."
+      }
+    },
+    {
+      "id": "fc-multidollar",
+      "front": {
+        "en": "What does the $$ string prefix do and when is it useful?",
+        "fr": "Que fait le préfixe de chaîne $$ et quand est-il utile ?"
+      },
+      "back": {
+        "en": "It raises the interpolation trigger to $$: single $ becomes a literal character, $$expr interpolates. Kills the ${'$'} workaround in JSON-path, GraphQL, regexes and template snippets full of dollars. More dollars raise the bar further ($$$).",
+        "fr": "Il élève le déclencheur d'interpolation à $$ : le $ simple devient littéral, $$expr interpole. Élimine le contournement ${'$'} dans JSON-path, GraphQL, regex et templates pleins de dollars. Plus de dollars élèvent encore le seuil ($$$)."
+      }
+    },
+    {
+      "id": "fc-nonlocal-break",
+      "front": {
+        "en": "What did Kotlin 2.1 change about break/continue in lambdas?",
+        "fr": "Qu'a changé Kotlin 2.1 pour break/continue dans les lambdas ?"
+      },
+      "back": {
+        "en": "Inside lambdas passed to INLINE functions, break and continue may now target the enclosing loop (non-local), matching what return could already do. Non-inline lambdas still forbid it: there is no loop to jump to once the lambda escapes.",
+        "fr": "Dans les lambdas passées aux fonctions INLINE, break et continue peuvent désormais viser la boucle englobante (non-local), à l'image de ce que return savait faire. Les lambdas non-inline l'interdisent toujours : plus de boucle où sauter une fois la lambda échappée."
+      }
+    },
+    {
+      "id": "fc-context-params",
+      "front": {
+        "en": "Context parameters: declaration syntax and what problem they solve?",
+        "fr": "Context parameters : syntaxe de déclaration et problème résolu ?"
+      },
+      "back": {
+        "en": "context(tx: Transaction, log: Logger) fun f(data: D): named values the CALLER must have in scope, used by name in the body. Separates ambient capabilities from business arguments, avoids parameter drilling, composes without stealing this. Beta in 2.2 (-Xcontext-parameters).",
+        "fr": "context(tx: Transaction, log: Logger) fun f(data: D) : des valeurs nommées que l'APPELANT doit avoir en portée, utilisées par nom dans le corps. Sépare les capacités ambiantes des arguments métier, évite le forage de paramètres, se compose sans voler this. Beta en 2.2 (-Xcontext-parameters)."
+      }
+    },
+    {
+      "id": "fc-context-vs-receiver",
+      "front": {
+        "en": "Context parameter vs extension receiver: key differences?",
+        "fr": "Context parameter vs récepteur d'extension : différences clés ?"
+      },
+      "back": {
+        "en": "A function has at most one extension receiver and it becomes this (steals the implicit scope); context parameters are plural, named, and leave this alone. Receivers say \"a method OF this type\"; contexts say \"needs these capabilities AROUND the call\".",
+        "fr": "Une fonction a au plus un récepteur d'extension et il devient this (accapare la portée implicite) ; les context parameters sont pluriels, nommés, et laissent this tranquille. Le récepteur dit \"une méthode DE ce type\" ; les contextes disent \"exige ces capacités AUTOUR de l'appel\"."
+      }
+    },
+    {
+      "id": "fc-optin",
+      "front": {
+        "en": "How does the @OptIn mechanism work?",
+        "fr": "Comment fonctionne le mécanisme @OptIn ?"
+      },
+      "back": {
+        "en": "Pre-stable APIs carry a marker annotation (itself annotated @RequiresOptIn). Consumers either @OptIn(Marker::class) locally (use without exposing) or annotate with the marker to propagate the requirement to their own callers. Compiler errors without one of the two.",
+        "fr": "Les API pré-stables portent une annotation marqueur (elle-même annotée @RequiresOptIn). Les consommateurs font @OptIn(Marker::class) localement (usage sans exposition) ou s'annotent du marqueur pour propager l'exigence à leurs propres appelants. Erreur compilateur sans l'un des deux."
+      }
+    },
+    {
+      "id": "fc-stability-levels",
+      "front": {
+        "en": "Kotlin feature stability levels and what each implies?",
+        "fr": "Les niveaux de stabilité des fonctionnalités Kotlin et leurs implications ?"
+      },
+      "back": {
+        "en": "Experimental: may change or vanish, avoid in production. Alpha/Beta: design mostly settled, opt-in required, syntax may still shift. Stable: backward compatibility guaranteed by the language evolution rules. Library APIs and language features graduate independently.",
+        "fr": "Experimental : peut changer ou disparaître, à éviter en production. Alpha/Beta : design quasi arrêté, opt-in requis, la syntaxe peut bouger. Stable : rétrocompatibilité garantie par les règles d'évolution du langage. API de bibliothèques et fonctionnalités de langage graduent indépendamment."
+      }
+    },
+    {
+      "id": "fc-k2-stricter",
+      "front": {
+        "en": "K2 rejects code that compiled under the old front-end. How should you read those errors?",
+        "fr": "K2 rejette du code qui compilait avec l'ancien front-end. Comment lire ces erreurs ?"
+      },
+      "back": {
+        "en": "As latent bugs surfaced, not regressions: most involve unsound smart casts, unstable properties or platform-type leniency the old analyzer let slide. Fix the code (capture to vals, resolve nullability) rather than pinning the old compiler.",
+        "fr": "Comme des bugs latents révélés, pas des régressions : la plupart impliquent des smart casts non sûrs, des propriétés instables ou une tolérance de platform types que l'ancien analyseur laissait passer. Corrigez le code (capture en vals, nullabilité tranchée) plutôt que d'épingler l'ancien compilateur."
+      }
+    },
+    {
+      "id": "fc-keep",
+      "front": {
+        "en": "What is KEEP and why read it?",
+        "fr": "Qu'est-ce que KEEP et pourquoi le lire ?"
+      },
+      "back": {
+        "en": "Kotlin Evolution and Enhancement Process: the public GitHub repo of language design proposals (motivation, alternatives, decisions). Reading a KEEP before release explains WHY a feature exists, which makes its syntax and limits predictable. The kotlin-news pipeline of this app monitors it.",
+        "fr": "Kotlin Evolution and Enhancement Process : le repo GitHub public des propositions de design du langage (motivation, alternatives, décisions). Lire un KEEP avant la sortie explique le POURQUOI d'une fonctionnalité, rendant syntaxe et limites prévisibles. Le pipeline kotlin-news de cette app le surveille."
+      }
+    }
+  ],
+  "exercises": [
+    {
+      "id": "ex-guard-when",
+      "kind": "predict-output",
+      "difficulty": 2,
+      "prompt": {
+        "en": "With guard conditions (Kotlin 2.1+), what does this print?",
+        "fr": "Avec les guard conditions (Kotlin 2.1+), qu'affiche ceci ?"
+      },
+      "code": "sealed interface Msg\ndata class Text(val body: String) : Msg\ndata class Img(val sizeKb: Int) : Msg\n\nfun route(m: Msg) = when (m) {\n    is Text if m.body.startsWith(\"/\") -> \"command\"\n    is Text                           -> \"chat\"\n    is Img if m.sizeKb > 1024         -> \"too big\"\n    is Img                            -> \"image\"\n}\n\nfun main() {\n    println(route(Text(\"/help\")))\n    println(route(Text(\"hello\")))\n    println(route(Img(2048)))\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "command / chat / too big",
+            "fr": "command / chat / too big"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "chat / chat / image",
+            "fr": "chat / chat / image"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "command / chat / image",
+            "fr": "command / chat / image"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "It does not compile: when branches cannot carry if",
+            "fr": "Ne compile pas : les branches when ne peuvent pas porter de if"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "Guards run in branch order with the subject already smart-cast: \"/help\" matches the guarded Text branch (command); \"hello\" fails the guard and falls to the plain Text branch (chat); Img(2048) passes sizeKb > 1024 (too big). The when stays exhaustive because unguarded branches cover both types.",
+        "fr": "Les gardes s'évaluent dans l'ordre des branches avec le sujet déjà smart-casté : \"/help\" matche la branche Text gardée (command) ; \"hello\" rate la garde et tombe sur la branche Text simple (chat) ; Img(2048) passe sizeKb > 1024 (too big). Le when reste exhaustif car les branches sans garde couvrent les deux types."
+      }
+    },
+    {
+      "id": "ex-multidollar",
+      "kind": "mcq",
+      "difficulty": 2,
+      "prompt": {
+        "en": "You embed this GraphQL snippet where `first` must stay literal but pageSize must interpolate. Which literal works?",
+        "fr": "Vous intégrez ce fragment GraphQL où `first` doit rester littéral mais pageSize doit s'interpoler. Quel littéral fonctionne ?"
+      },
+      "code": "query($first: Int) { users(first: <pageSize here>) { id } }",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "$$\"\"\"query($first: Int) { users(first: $$pageSize) { id } }\"\"\"",
+            "fr": "$$\"\"\"query($first: Int) { users(first: $$pageSize) { id } }\"\"\""
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "\"\"\"query($first: Int) { users(first: $pageSize) { id } }\"\"\"",
+            "fr": "\"\"\"query($first: Int) { users(first: $pageSize) { id } }\"\"\""
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "\"query(\\$first: Int) { users(first: $pageSize) { id } }\"",
+            "fr": "\"query(\\$first: Int) { users(first: $pageSize) { id } }\""
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "Both a and c produce the desired string",
+            "fr": "a et c produisent toutes deux la chaîne voulue"
+          }
+        }
+      ],
+      "answerId": "d",
+      "explanation": {
+        "en": "a uses 2.1 multi-dollar mode: $first stays literal, $$pageSize interpolates; clean at any scale of dollars. c is the classic escaped form in a regular string: \\$ makes the dollar literal and $pageSize interpolates, also correct but noisy and unavailable in raw strings (b interpolates $first wrongly, and raw strings cannot backslash-escape). So both a and c yield the target text; a is the modern choice.",
+        "fr": "a utilise le mode multi-dollar 2.1 : $first reste littéral, $$pageSize s'interpole ; propre quel que soit le nombre de dollars. c est l'échappement classique en chaîne normale : \\$ rend le dollar littéral et $pageSize s'interpole, correct aussi mais bruyant et impossible en raw string (b interpole $first à tort, et les raw strings n'échappent pas par backslash). a et c produisent donc le texte voulu ; a est le choix moderne."
+      }
+    },
+    {
+      "id": "ex-context-declaration",
+      "kind": "mcq",
+      "difficulty": 3,
+      "prompt": {
+        "en": "Which declaration correctly gives an audit capability to a service function using context parameters (Kotlin 2.2 beta)?",
+        "fr": "Quelle déclaration donne correctement une capacité d'audit à une fonction de service via les context parameters (Kotlin 2.2 beta) ?"
+      },
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "context(audit: AuditLog) fun close(account: Account) { audit.record(\"close\", account.id); ... }",
+            "fr": "context(audit: AuditLog) fun close(account: Account) { audit.record(\"close\", account.id); ... }"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "fun AuditLog.close(account: Account) { record(\"close\", account.id); ... }",
+            "fr": "fun AuditLog.close(account: Account) { record(\"close\", account.id); ... }"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "context(AuditLog) fun close(account: Account) { this@AuditLog.record(...) }",
+            "fr": "context(AuditLog) fun close(account: Account) { this@AuditLog.record(...) }"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "fun close(account: Account, audit: AuditLog = AuditLog.global) { ... }",
+            "fr": "fun close(account: Account, audit: AuditLog = AuditLog.global) { ... }"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "2.2 context parameters are NAMED: context(audit: AuditLog), used as audit.record(...). c is the abandoned context-receivers syntax (unnamed, this-based), gone in 2.2. b makes close an extension of AuditLog, hijacking the receiver position for a capability, semantically wrong. d works but couples the signature to a global default, precisely what contexts avoid.",
+        "fr": "Les context parameters 2.2 sont NOMMÉS : context(audit: AuditLog), utilisé via audit.record(...). c est la syntaxe abandonnée des context receivers (anonyme, basée sur this), disparue en 2.2. b fait de close une extension d'AuditLog, détournant la position de récepteur pour une capacité, sémantiquement faux. d fonctionne mais couple la signature à un défaut global, précisément ce que les contextes évitent."
+      }
+    },
+    {
+      "id": "ex-optin-missing",
+      "kind": "find-bug",
+      "difficulty": 2,
+      "prompt": {
+        "en": "This code fails to compile with \"This declaration needs opt-in\". What is the correct professional fix?",
+        "fr": "Ce code échoue avec \"This declaration needs opt-in\". Quel est le bon correctif professionnel ?"
+      },
+      "code": "import kotlinx.serialization.ExperimentalSerializationApi\n\nfun dump(payload: Payload): ByteArray =\n    ProtoBuf.encodeToByteArray(payload)   // marked @ExperimentalSerializationApi",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "Add @OptIn(ExperimentalSerializationApi::class) on dump: acknowledge the risk locally without forcing it on your own callers",
+            "fr": "Ajouter @OptIn(ExperimentalSerializationApi::class) sur dump : assumer le risque localement sans l'imposer à vos propres appelants"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "Suppress the error with @Suppress(\"OPT_IN_USAGE_ERROR\")",
+            "fr": "Supprimer l'erreur avec @Suppress(\"OPT_IN_USAGE_ERROR\")"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "Catch the exception the API throws at runtime",
+            "fr": "Attraper l'exception que l'API lève à l'exécution"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "Downgrade kotlinx.serialization until the warning disappears",
+            "fr": "Rétrograder kotlinx.serialization jusqu'à disparition de l'avertissement"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "Opt-in is a consent mechanism, not an error to silence: @OptIn on the smallest enclosing declaration records that you accept possible breaking changes, without propagating (annotating dump WITH the marker itself would force callers to opt in too, appropriate only if you re-expose the risk). Suppressing (b) defeats the design; nothing is thrown at runtime (c); downgrading (d) solves nothing.",
+        "fr": "L'opt-in est un mécanisme de consentement, pas une erreur à museler : @OptIn sur la plus petite déclaration englobante acte que vous acceptez d'éventuels changements cassants, sans propager (annoter dump AVEC le marqueur forcerait vos appelants à s'opt-in aussi, pertinent seulement si vous réexposez le risque). Supprimer (b) contourne le design ; rien n'est levé à l'exécution (c) ; rétrograder (d) ne résout rien."
+      }
+    },
+    {
+      "id": "ex-k2-smartcast",
+      "kind": "mcq",
+      "difficulty": 3,
+      "prompt": {
+        "en": "Which smart cast works in K2 (Kotlin 2.0+) but was rejected by the old front-end?",
+        "fr": "Quel smart cast fonctionne en K2 (Kotlin 2.0+) mais était rejeté par l'ancien front-end ?"
+      },
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "if (x is Reader || x is Writer) x.close(), where close() comes from their common Closeable supertype",
+            "fr": "if (x is Reader || x is Writer) x.close(), où close() vient du supertype commun Closeable"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "Smart-casting a var PROPERTY of a class after a null check",
+            "fr": "Smart-caster une PROPRIÉTÉ var de classe après un test de null"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "Smart-casting across two different modules",
+            "fr": "Smart-caster à travers deux modules différents"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "Treating a platform type as non-null without a check",
+            "fr": "Traiter un platform type comme non-nul sans vérification"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "K2 unions the information from || branches and casts to the least common supertype (Closeable), which the old front-end could not do. b and c remain forbidden forever: they are unsound (the property can change; other-module contracts are invisible), not analyzer limitations. d was never a smart cast at all.",
+        "fr": "K2 unit l'information des branches || et caste vers le plus petit supertype commun (Closeable), ce que l'ancien front-end ne savait pas faire. b et c restent interdits à jamais : ils sont non sûrs (la propriété peut changer ; les contrats d'un autre module sont invisibles), pas des limites d'analyseur. d n'a jamais été un smart cast."
+      }
+    }
+  ]
+}

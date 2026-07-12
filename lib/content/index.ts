@@ -21,6 +21,7 @@ import coroutines from "@/content/packs/kotlin/modules/coroutines.json";
 import advanced from "@/content/packs/kotlin/modules/advanced.json";
 import interopMultiplatform from "@/content/packs/kotlin/modules/interop-multiplatform.json";
 import idioms from "@/content/packs/kotlin/modules/idioms.json";
+import whatsNew from "@/content/packs/kotlin/modules/whats-new.json";
 
 export const pack = packManifest as unknown as Pack;
 
@@ -36,6 +37,7 @@ const modules: Record<string, Module> = {
   [advanced.id]: advanced as unknown as Module,
   [interopMultiplatform.id]: interopMultiplatform as unknown as Module,
   [idioms.id]: idioms as unknown as Module,
+  [whatsNew.id]: whatsNew as unknown as Module,
 };
 
 export function getModule(id: string): Module | undefined {

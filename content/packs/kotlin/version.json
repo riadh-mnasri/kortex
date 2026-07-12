@@ -5,6 +5,11 @@
       "version": "2.2",
       "date": "2026-07-10",
       "note": "Initial content pack: coroutines module (4 lessons, 12 flashcards, 6 exercises)."
+    },
+    {
+      "version": "2.2",
+      "date": "2026-07-12",
+      "note": "Full language coverage: all 11 modules available (basics, functions, classes, generics, collections, scope-functions, coroutines, advanced, interop-multiplatform, idioms, whats-new)."
     }
   ]
 }
