@@ -1,0 +1,551 @@
+{
+  "id": "interop-multiplatform",
+  "title": { "en": "Java interop & KMP", "fr": "Interop Java & KMP" },
+  "tagline": {
+    "en": "Interoperability, Kotlin Multiplatform",
+    "fr": "Interopérabilité, Kotlin Multiplatform"
+  },
+  "icon": "🌉",
+  "lessons": [
+    {
+      "id": "java-from-kotlin",
+      "title": {
+        "en": "Calling Java from Kotlin",
+        "fr": "Appeler Java depuis Kotlin"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "Java code is a first-class citizen: getters/setters surface as properties (`user.getName()` becomes `user.name`), `is`/`has` boolean prefixes are preserved. Types without nullability annotations come in as platform types (`String!`): usable as nullable or not, your call, your risk. Annotated Java (@Nullable/@NotNull, JSR-305) maps to real Kotlin nullability.",
+            "fr": "Le code Java est un citoyen de première classe : getters/setters apparaissent comme des propriétés (`user.getName()` devient `user.name`), les préfixes booléens `is`/`has` sont préservés. Les types sans annotations de nullabilité arrivent en platform types (`String!`) : utilisables nullables ou non, à vous de choisir, à vos risques. Le Java annoté (@Nullable/@NotNull, JSR-305) se traduit en vraie nullabilité Kotlin."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Kotlin has no checked exceptions: calling a Java method that throws IOException requires no try/catch. SAM conversion works for Java functional interfaces out of the box: pass a lambda where a Runnable or Comparator is expected. Java collections arrive as platform flavors: List<String>! can be treated as List or MutableList; choose the read-only view unless you must mutate.",
+            "fr": "Kotlin n'a pas d'exceptions vérifiées : appeler une méthode Java qui lève IOException n'exige aucun try/catch. La conversion SAM fonctionne d'office pour les interfaces fonctionnelles Java : passez une lambda là où un Runnable ou Comparator est attendu. Les collections Java arrivent en saveurs platform : List<String>! peut être traitée en List ou MutableList ; choisissez la vue lecture seule sauf mutation nécessaire."
+          }
+        },
+        {
+          "type": "code",
+          "code": "val executor = Executors.newSingleThreadExecutor()\nexecutor.submit { println(\"SAM-converted lambda\") }\n\nval path = System.getProperty(\"user.home\")   // String! platform type\nval safe: String = path ?: \".\"               // decide nullability at the boundary"
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "Assigning a platform type to a non-null Kotlin type inserts a runtime check that throws NPE with a helpful message, but AT THE ASSIGNMENT, possibly far from the real cause. Decide nullability explicitly at every Java boundary (elvis, requireNotNull) instead of letting platform types propagate through your code.",
+            "fr": "Affecter un platform type à un type Kotlin non-nul insère une vérification runtime qui lève une NPE au message utile, mais À L'AFFECTATION, potentiellement loin de la vraie cause. Tranchez la nullabilité explicitement à chaque frontière Java (elvis, requireNotNull) au lieu de laisser les platform types se propager dans votre code."
+          }
+        }
+      ]
+    },
+    {
+      "id": "kotlin-from-java",
+      "title": {
+        "en": "Calling Kotlin from Java",
+        "fr": "Appeler Kotlin depuis Java"
+      },
+      "minutes": 5,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "Top-level functions land in a facade class named after the file: greet() in Utils.kt becomes UtilsKt.greet() for Java. Rename the facade with @file:JvmName(\"Utils\"). An `object` is reachable via its INSTANCE field (Analytics.INSTANCE.track()), a companion via Companion, unless members carry @JvmStatic.",
+            "fr": "Les fonctions top-level atterrissent dans une classe façade nommée d'après le fichier : greet() dans Utils.kt devient UtilsKt.greet() pour Java. Renommez la façade avec @file:JvmName(\"Utils\"). Un `object` s'atteint via son champ INSTANCE (Analytics.INSTANCE.track()), un companion via Companion, sauf membres @JvmStatic."
+          }
+        },
+        {
+          "type": "code",
+          "code": "@file:JvmName(\"Text\")            // Java sees Text.slugify(...)\n\n@JvmOverloads\nfun slugify(s: String, sep: Char = '-', lower: Boolean = true): String = ...\n\nclass Ids {\n    companion object {\n        @JvmStatic fun next(): Long = ...\n        @JvmField val NAMESPACE = \"kortex\"\n    }\n}",
+          "caption": {
+            "en": "The @Jvm* family exists solely to polish the Java-facing API.",
+            "fr": "La famille @Jvm* existe uniquement pour polir l'API vue de Java."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Default parameter values are invisible to Java (one full-arity method) unless @JvmOverloads generates the telescoping overloads. Functions returning Unit appear as void. Kotlin exceptions are all unchecked for Java too; add @Throws(IOException::class) when Java callers must be able to catch declaratively.",
+            "fr": "Les valeurs de paramètres par défaut sont invisibles pour Java (une seule méthode complète) sauf @JvmOverloads qui génère les surcharges télescopiques. Les fonctions renvoyant Unit apparaissent en void. Les exceptions Kotlin sont toutes non vérifiées pour Java aussi ; ajoutez @Throws(IOException::class) quand les appelants Java doivent pouvoir attraper déclarativement."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "Without @Throws, a Java caller cannot write catch (IOException e) around your Kotlin function: javac rejects catching a checked exception that is never declared. The exception still flies at runtime; the annotation only fixes the declaration so Java can handle it.",
+            "fr": "Sans @Throws, un appelant Java ne peut pas écrire catch (IOException e) autour de votre fonction Kotlin : javac rejette la capture d'une exception vérifiée jamais déclarée. L'exception vole quand même à l'exécution ; l'annotation ne répare que la déclaration pour que Java puisse la gérer."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Design the Java view deliberately when shipping a library: @JvmName for keyword collisions and erasure clashes, @JvmStatic on companion factories, @JvmOverloads on config-style functions. Kotlin callers see none of it.",
+            "fr": "Concevez délibérément la vue Java quand vous livrez une bibliothèque : @JvmName pour les collisions de mots-clés et d'effacement, @JvmStatic sur les factories de companion, @JvmOverloads sur les fonctions de configuration. Les appelants Kotlin n'en voient rien."
+          }
+        }
+      ]
+    },
+    {
+      "id": "fun-interfaces-boundary",
+      "title": {
+        "en": "SAM types & clean boundaries",
+        "fr": "Types SAM & frontières propres"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "Kotlin interfaces do not get SAM conversion automatically: declare `fun interface Validator { fun validate(s: String): Boolean }` to accept lambdas. When the implementation is a lambda, the compiler builds the instance; with state or several methods, fall back to object expressions. A typealias of a function type is the lighter alternative when no interface identity is needed.",
+            "fr": "Les interfaces Kotlin n'ont pas la conversion SAM automatique : déclarez `fun interface Validator { fun validate(s: String): Boolean }` pour accepter des lambdas. Quand l'implémentation est une lambda, le compilateur construit l'instance ; avec de l'état ou plusieurs méthodes, revenez aux object expressions. Un typealias de type fonction est l'alternative plus légère quand aucune identité d'interface n'est requise."
+          }
+        },
+        {
+          "type": "code",
+          "code": "fun interface RetryPolicy {\n    fun shouldRetry(attempt: Int, error: Throwable): Boolean\n}\n\nval never = RetryPolicy { _, _ -> false }\nclient.configure(RetryPolicy { attempt, _ -> attempt < 3 })"
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Boundary hygiene rules that pay off: convert platform types to real Kotlin types immediately; wrap Java builders in Kotlin DSL shims; keep java.util.Optional out of Kotlin signatures (map it to nullable at the edge); expose kotlin.time.Duration and kotlinx datetime types internally, converting from java.time at the boundary.",
+            "fr": "Règles d'hygiène de frontière rentables : convertissez les platform types en vrais types Kotlin immédiatement ; enveloppez les builders Java dans des façades DSL Kotlin ; gardez java.util.Optional hors des signatures Kotlin (mappez vers nullable au bord) ; exposez kotlin.time.Duration et les types kotlinx datetime en interne, en convertissant depuis java.time à la frontière."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "A Kotlin lambda converted to a Java SAM creates a NEW instance per conversion site unless the compiler can cache it (no captures): registering listener { } then trying to unregister with another lambda of identical code fails, they are different objects. Keep a reference to unregister.",
+            "fr": "Une lambda Kotlin convertie vers un SAM Java crée une NOUVELLE instance par site de conversion sauf si le compilateur peut la mettre en cache (aucune capture) : enregistrer listener { } puis tenter de désenregistrer avec une autre lambda au code identique échoue, ce sont des objets différents. Gardez une référence pour désenregistrer."
+          }
+        }
+      ]
+    },
+    {
+      "id": "kmp-overview",
+      "title": {
+        "en": "Kotlin Multiplatform in one lesson",
+        "fr": "Kotlin Multiplatform en une leçon"
+      },
+      "minutes": 5,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "KMP compiles the same Kotlin to several targets: JVM/Android, JS, Native (iOS, desktop), WasmJs. Code lives in source sets: `commonMain` (shared, sees only multiplatform APIs), plus per-target sets (jvmMain, iosMain...) with full platform access. Share business logic, models, validation and networking; keep UI and platform services per target.",
+            "fr": "KMP compile le même Kotlin vers plusieurs cibles : JVM/Android, JS, Native (iOS, desktop), WasmJs. Le code vit dans des source sets : `commonMain` (partagé, ne voit que les API multiplateformes), plus des sets par cible (jvmMain, iosMain...) avec accès plateforme complet. Partagez logique métier, modèles, validation et réseau ; gardez l'UI et les services plateforme par cible."
+          }
+        },
+        {
+          "type": "code",
+          "code": "// commonMain\nexpect fun currentTimeMillis(): Long\nexpect class SecureStorage { fun put(key: String, value: String) }\n\n// jvmMain\nactual fun currentTimeMillis(): Long = System.currentTimeMillis()\n\n// iosMain\nactual fun currentTimeMillis(): Long =\n    (NSDate().timeIntervalSince1970 * 1000).toLong()",
+          "caption": {
+            "en": "expect declares the contract in common code; each target provides its actual.",
+            "fr": "expect déclare le contrat en code commun ; chaque cible fournit son actual."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "The ecosystem carries the model: kotlinx.coroutines, kotlinx.serialization, Ktor client, SQLDelight and kotlinx-datetime are multiplatform. Compose Multiplatform extends sharing to UI where it fits. In practice, prefer interfaces + dependency injection over expect/actual for anything testable: expect/actual shines for small leaf primitives.",
+            "fr": "L'écosystème porte le modèle : kotlinx.coroutines, kotlinx.serialization, le client Ktor, SQLDelight et kotlinx-datetime sont multiplateformes. Compose Multiplatform étend le partage à l'UI quand c'est pertinent. En pratique, préférez interfaces + injection de dépendances à expect/actual pour tout ce qui se teste : expect/actual brille pour les petites primitives feuilles."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "Kotlin/Native interop with Swift flattens some Kotlin niceties: suspend functions become completion handlers (or need a wrapper library), sealed hierarchies lose exhaustiveness in Swift switch, and default arguments disappear. Design the shared API surface with the weakest consumer in mind.",
+            "fr": "L'interop Kotlin/Native avec Swift aplatit certains raffinements : les fonctions suspend deviennent des completion handlers (ou exigent une bibliothèque wrapper), les hiérarchies sealed perdent l'exhaustivité dans les switch Swift, et les arguments par défaut disparaissent. Concevez la surface d'API partagée en pensant au consommateur le plus faible."
+          }
+        }
+      ]
+    }
+  ],
+  "flashcards": [
+    {
+      "id": "fc-platform-boundary",
+      "front": {
+        "en": "What is the professional rule for platform types at a Java boundary?",
+        "fr": "Quelle est la règle professionnelle pour les platform types à une frontière Java ?"
+      },
+      "back": {
+        "en": "Resolve nullability immediately: assign to an explicit String or String? (with elvis/requireNotNull) at the call site, never let String! propagate. The inserted runtime check fails at the assignment, close to the cause, instead of deep in your code.",
+        "fr": "Tranchez la nullabilité immédiatement : affectez vers un String ou String? explicite (avec elvis/requireNotNull) au site d'appel, ne laissez jamais String! se propager. La vérification runtime insérée échoue à l'affectation, près de la cause, plutôt qu'au fond de votre code."
+      }
+    },
+    {
+      "id": "fc-getter-mapping",
+      "front": {
+        "en": "How do Java accessors map to Kotlin syntax?",
+        "fr": "Comment les accesseurs Java se traduisent-ils en syntaxe Kotlin ?"
+      },
+      "back": {
+        "en": "getX()/setX(v) pairs surface as property x; boolean isX() keeps the name isX. Only method pairs following the convention qualify; a lone setter or mismatched types stay plain methods.",
+        "fr": "Les paires getX()/setX(v) apparaissent comme la propriété x ; le booléen isX() garde le nom isX. Seules les paires suivant la convention qualifient ; un setter isolé ou des types discordants restent des méthodes."
+      }
+    },
+    {
+      "id": "fc-toplevel-java",
+      "front": {
+        "en": "How does Java call a top-level Kotlin function from Strings.kt?",
+        "fr": "Comment Java appelle-t-il une fonction top-level Kotlin de Strings.kt ?"
+      },
+      "back": {
+        "en": "Through the file facade: StringsKt.capitalize(...). @file:JvmName(\"Strings\") renames the facade for a cleaner Java API. Multiple files can merge into one facade with @file:JvmMultifileClass.",
+        "fr": "Via la façade de fichier : StringsKt.capitalize(...). @file:JvmName(\"Strings\") renomme la façade pour une API Java plus propre. Plusieurs fichiers peuvent fusionner en une façade avec @file:JvmMultifileClass."
+      }
+    },
+    {
+      "id": "fc-object-java",
+      "front": {
+        "en": "How does Java reach members of a Kotlin object and companion object?",
+        "fr": "Comment Java atteint-il les membres d'un object Kotlin et d'un companion object ?"
+      },
+      "back": {
+        "en": "object: through the INSTANCE field (Analytics.INSTANCE.track()). companion: through Companion (User.Companion.of()). @JvmStatic additionally generates real static forwarders; @JvmField/const expose fields directly.",
+        "fr": "object : via le champ INSTANCE (Analytics.INSTANCE.track()). companion : via Companion (User.Companion.of()). @JvmStatic génère en plus de vrais statiques ; @JvmField/const exposent les champs directement."
+      }
+    },
+    {
+      "id": "fc-throws",
+      "front": {
+        "en": "Why does a Java caller need @Throws on your Kotlin function?",
+        "fr": "Pourquoi un appelant Java a-t-il besoin de @Throws sur votre fonction Kotlin ?"
+      },
+      "back": {
+        "en": "Kotlin declares no checked exceptions, and javac forbids catching a checked exception that is not declared by the callee. @Throws(IOException::class) adds the throws clause to the JVM signature so Java can catch it. Runtime behavior is unchanged.",
+        "fr": "Kotlin ne déclare aucune exception vérifiée, et javac interdit d'attraper une exception vérifiée non déclarée par l'appelé. @Throws(IOException::class) ajoute la clause throws à la signature JVM pour que Java puisse l'attraper. Le comportement runtime est inchangé."
+      }
+    },
+    {
+      "id": "fc-fun-interface",
+      "front": {
+        "en": "fun interface vs typealias of a function type: how to choose?",
+        "fr": "fun interface vs typealias d'un type fonction : comment choisir ?"
+      },
+      "back": {
+        "en": "fun interface: a real named type, SAM-convertible from lambdas, visible to Java, can gain default methods later. typealias: zero-cost name for the raw function type, no identity, invisible to Java overload resolution. Public APIs usually deserve the fun interface.",
+        "fr": "fun interface : un vrai type nommé, SAM-convertible depuis les lambdas, visible de Java, extensible avec des méthodes par défaut. typealias : nom à coût nul pour le type fonction brut, sans identité, invisible pour la résolution Java. Les API publiques méritent généralement la fun interface."
+      }
+    },
+    {
+      "id": "fc-sam-identity",
+      "front": {
+        "en": "Why can removeListener { ... } fail to remove what addListener { ... } added?",
+        "fr": "Pourquoi removeListener { ... } peut-il échouer à retirer ce qu'addListener { ... } a ajouté ?"
+      },
+      "back": {
+        "en": "Each SAM conversion of a lambda may create a distinct object; two textually identical lambdas are not equal. Store the converted listener in a val and pass the same reference to add and remove.",
+        "fr": "Chaque conversion SAM d'une lambda peut créer un objet distinct ; deux lambdas textuellement identiques ne sont pas égales. Stockez le listener converti dans un val et passez la même référence à add et remove."
+      }
+    },
+    {
+      "id": "fc-jvmoverloads-recall",
+      "front": {
+        "en": "What does @JvmOverloads generate exactly?",
+        "fr": "Que génère exactement @JvmOverloads ?"
+      },
+      "back": {
+        "en": "One overload per omittable trailing parameter group: f(a), f(a, b), f(a, b, c) for two defaults. Callers dropping a middle parameter only still need named arguments, which Java lacks: order defaults accordingly.",
+        "fr": "Une surcharge par groupe de paramètres finaux omissibles : f(a), f(a, b), f(a, b, c) pour deux défauts. Omettre un paramètre du milieu exige des arguments nommés, que Java n'a pas : ordonnez les défauts en conséquence."
+      }
+    },
+    {
+      "id": "fc-expect-actual",
+      "front": {
+        "en": "What are expect/actual declarations and where do they live?",
+        "fr": "Que sont les déclarations expect/actual et où vivent-elles ?"
+      },
+      "back": {
+        "en": "expect declares an API in commonMain without a body; each target source set (jvmMain, iosMain...) supplies the matching actual implementation, checked by the compiler. Best for small platform primitives; larger seams do better with interfaces plus DI.",
+        "fr": "expect déclare une API dans commonMain sans corps ; chaque source set cible (jvmMain, iosMain...) fournit l'implémentation actual correspondante, vérifiée par le compilateur. Idéal pour de petites primitives plateforme ; les coutures plus larges préfèrent interfaces plus DI."
+      }
+    },
+    {
+      "id": "fc-commonmain",
+      "front": {
+        "en": "What can code in commonMain depend on?",
+        "fr": "De quoi le code de commonMain peut-il dépendre ?"
+      },
+      "back": {
+        "en": "Only multiplatform APIs: the Kotlin stdlib common subset and multiplatform libraries (kotlinx.coroutines, serialization, Ktor client, kotlinx-datetime). No java.*, no platform SDKs; those live in target source sets behind expect/actual or interfaces.",
+        "fr": "Uniquement des API multiplateformes : le sous-ensemble commun de la stdlib et les bibliothèques multiplateformes (kotlinx.coroutines, serialization, client Ktor, kotlinx-datetime). Pas de java.*, pas de SDK plateforme ; ceux-ci vivent dans les source sets cibles derrière expect/actual ou des interfaces."
+      }
+    },
+    {
+      "id": "fc-swift-interop",
+      "front": {
+        "en": "Name two Kotlin features that degrade when consumed from Swift via KMP.",
+        "fr": "Citez deux fonctionnalités Kotlin dégradées côté Swift via KMP."
+      },
+      "back": {
+        "en": "suspend functions (exposed as completion handlers unless wrapped), sealed exhaustiveness (Swift switch needs a default), default parameter values (lost), and generics (heavily erased in the ObjC bridge). Shared API design must account for the weakest bridge.",
+        "fr": "Les fonctions suspend (exposées en completion handlers sauf wrapper), l'exhaustivité sealed (le switch Swift exige un default), les valeurs par défaut (perdues), et les génériques (fortement effacés dans le pont ObjC). L'API partagée doit viser le pont le plus faible."
+      }
+    },
+    {
+      "id": "fc-optional-boundary",
+      "front": {
+        "en": "How should java.util.Optional be handled at a Kotlin boundary?",
+        "fr": "Comment traiter java.util.Optional à une frontière Kotlin ?"
+      },
+      "back": {
+        "en": "Convert immediately: optional.orElse(null) into a T?, or getOrNull() (Kotlin 1.7+ stdlib). Never propagate Optional through Kotlin signatures; nullable types carry the same information with language support (safe calls, elvis, smart casts).",
+        "fr": "Convertissez immédiatement : optional.orElse(null) vers un T?, ou getOrNull() (stdlib 1.7+). Ne propagez jamais Optional dans les signatures Kotlin ; les types nullables portent la même information avec le support du langage (safe calls, elvis, smart casts)."
+      }
+    }
+  ],
+  "exercises": [
+    {
+      "id": "ex-platform-npe",
+      "kind": "find-bug",
+      "difficulty": 2,
+      "prompt": {
+        "en": "This code crashes with an NPE on some machines only. Why?",
+        "fr": "Ce code plante en NPE sur certaines machines seulement. Pourquoi ?"
+      },
+      "code": "// Java: public class Env { public static String region() { return System.getenv(\"REGION\"); } }\n\nfun main() {\n    val region: String = Env.region()      // NPE here on machines without REGION\n    println(\"deploying to ${region.uppercase()}\")\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "Env.region() returns a platform type String!; assigning to non-null String inserts a runtime null check that throws when the env var is absent. Declare String? and handle null explicitly",
+            "fr": "Env.region() renvoie un platform type String! ; l'affecter à String non-nul insère une vérification runtime qui lève quand la variable d'env est absente. Déclarez String? et gérez null explicitement"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "uppercase() is not available on Java strings",
+            "fr": "uppercase() n'existe pas sur les chaînes Java"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "Static Java methods cannot be called from Kotlin",
+            "fr": "Les méthodes statiques Java ne s'appellent pas depuis Kotlin"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "String templates do not accept platform types",
+            "fr": "Les templates de chaînes n'acceptent pas les platform types"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "System.getenv returns null for missing variables, and the un-annotated Java method surfaces as String!. Writing val region: String promises non-null, so the compiler inserts an intrinsic check that throws exactly there. Correct boundary handling: val region = Env.region() ?: error(\"REGION is required\"), which fails with a message you chose.",
+        "fr": "System.getenv renvoie null pour une variable absente, et la méthode Java non annotée apparaît en String!. Écrire val region: String promet non-nul, le compilateur insère donc une vérification intrinsèque qui lève exactement là. Bonne gestion de frontière : val region = Env.region() ?: error(\"REGION is required\"), qui échoue avec votre message."
+      }
+    },
+    {
+      "id": "ex-java-call-shape",
+      "kind": "mcq",
+      "difficulty": 1,
+      "prompt": {
+        "en": "Utils.kt declares `fun slug(s: String, sep: Char = '-'): String` at top level with no annotations. How does Java call it with the default separator?",
+        "fr": "Utils.kt déclare `fun slug(s: String, sep: Char = '-'): String` au top-level sans annotation. Comment Java l'appelle-t-il avec le séparateur par défaut ?"
+      },
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "UtilsKt.slug(\"My Post\", '-') : the facade class and ALL arguments, defaults being invisible to Java",
+            "fr": "UtilsKt.slug(\"My Post\", '-') : la classe façade et TOUS les arguments, les défauts étant invisibles pour Java"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "Utils.slug(\"My Post\")",
+            "fr": "Utils.slug(\"My Post\")"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "UtilsKt.slug(\"My Post\")",
+            "fr": "UtilsKt.slug(\"My Post\")"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "new Utils().slug(\"My Post\", '-')",
+            "fr": "new Utils().slug(\"My Post\", '-')"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "Top-level functions live on the UtilsKt facade (rename with @file:JvmName). Default values do not exist in the JVM signature: Java must pass every argument, unless @JvmOverloads generates the shorter overloads. Options b/c/d each miss one of those two rules.",
+        "fr": "Les fonctions top-level vivent sur la façade UtilsKt (renommable via @file:JvmName). Les valeurs par défaut n'existent pas dans la signature JVM : Java doit tout passer, sauf @JvmOverloads qui génère les surcharges courtes. Les options b/c/d ratent chacune l'une de ces deux règles."
+      }
+    },
+    {
+      "id": "ex-throws-catch",
+      "kind": "find-bug",
+      "difficulty": 2,
+      "prompt": {
+        "en": "The Java side fails to compile. What is missing in the Kotlin code?",
+        "fr": "Le côté Java ne compile pas. Que manque-t-il au code Kotlin ?"
+      },
+      "code": "// Kotlin\nfun loadManifest(path: String): Manifest {\n    return parse(Files.readString(Path.of(path)))  // may throw IOException\n}\n\n// Java\ntry {\n    Manifest m = ManifestKt.loadManifest(\"app.yml\");\n} catch (IOException e) {          // javac: exception is never thrown\n    fallback();\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "@Throws(IOException::class) on loadManifest: javac refuses to catch a checked exception absent from the callee's declared signature",
+            "fr": "@Throws(IOException::class) sur loadManifest : javac refuse d'attraper une exception vérifiée absente de la signature déclarée de l'appelé"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "Kotlin must wrap the IOException in a RuntimeException",
+            "fr": "Kotlin doit envelopper l'IOException dans une RuntimeException"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "The Java code must catch Exception instead",
+            "fr": "Le code Java doit attraper Exception à la place"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "loadManifest must declare a try/catch internally",
+            "fr": "loadManifest doit déclarer un try/catch en interne"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "Kotlin compiles without throws clauses, and Java's rule says catching a checked exception the callee cannot throw is an error. @Throws adds IOException to the JVM signature, making the catch legal. (Catching Exception, option c, would compile but is the lazy fix that swallows too much.)",
+        "fr": "Kotlin compile sans clause throws, et la règle Java dit qu'attraper une exception vérifiée que l'appelé ne peut pas lever est une erreur. @Throws ajoute IOException à la signature JVM, rendant le catch légal. (Attraper Exception, option c, compilerait mais c'est le correctif paresseux qui avale trop.)"
+      }
+    },
+    {
+      "id": "ex-fun-interface-sam",
+      "kind": "mcq",
+      "difficulty": 2,
+      "prompt": {
+        "en": "Which declaration lets Kotlin callers write `retry(RetryPolicy { a, _ -> a < 3 })` AND Java callers pass a lambda too?",
+        "fr": "Quelle déclaration permet aux appelants Kotlin d'écrire `retry(RetryPolicy { a, _ -> a < 3 })` ET aux appelants Java de passer aussi une lambda ?"
+      },
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "fun interface RetryPolicy { fun shouldRetry(attempt: Int, e: Throwable): Boolean }",
+            "fr": "fun interface RetryPolicy { fun shouldRetry(attempt: Int, e: Throwable): Boolean }"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "typealias RetryPolicy = (Int, Throwable) -> Boolean",
+            "fr": "typealias RetryPolicy = (Int, Throwable) -> Boolean"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "interface RetryPolicy { fun shouldRetry(attempt: Int, e: Throwable): Boolean }",
+            "fr": "interface RetryPolicy { fun shouldRetry(attempt: Int, e: Throwable): Boolean }"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "abstract class RetryPolicy with one abstract method",
+            "fr": "abstract class RetryPolicy avec une méthode abstraite"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "fun interface enables SAM conversion for Kotlin lambdas and compiles to a plain single-method interface that Java lambdas satisfy naturally. A typealias (b) gives Kotlin ergonomics but no named type for Java. A regular interface (c) forces object expressions in Kotlin. Abstract classes (d) never SAM-convert in either language.",
+        "fr": "fun interface active la conversion SAM des lambdas Kotlin et compile vers une interface mono-méthode que les lambdas Java satisfont naturellement. Un typealias (b) donne l'ergonomie Kotlin mais aucun type nommé pour Java. Une interface ordinaire (c) force les object expressions en Kotlin. Les classes abstraites (d) ne se convertissent jamais en SAM."
+      }
+    },
+    {
+      "id": "ex-expect-actual-placement",
+      "kind": "mcq",
+      "difficulty": 2,
+      "prompt": {
+        "en": "In a KMP project (jvm + ios), where do `expect fun uuid(): String` and its implementations belong?",
+        "fr": "Dans un projet KMP (jvm + ios), où placer `expect fun uuid(): String` et ses implémentations ?"
+      },
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "expect in commonMain; actual fun uuid() in jvmMain (java.util.UUID) and in iosMain (NSUUID), same signature in each",
+            "fr": "expect dans commonMain ; actual fun uuid() dans jvmMain (java.util.UUID) et dans iosMain (NSUUID), même signature dans chacun"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "All three in commonMain guarded by if (platform) checks",
+            "fr": "Les trois dans commonMain gardées par des if (platform)"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "expect in each platform source set, actual in commonMain",
+            "fr": "expect dans chaque source set plateforme, actual dans commonMain"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "Only jvmMain needs an actual; iOS falls back automatically",
+            "fr": "Seul jvmMain a besoin d'un actual ; iOS retombe automatiquement"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "The contract (expect) lives once in common code; every target compiled must provide exactly one matching actual or compilation fails, there is no fallback (d) and no runtime platform switch (b). Direction never inverts (c): common declares, platforms fulfill.",
+        "fr": "Le contrat (expect) vit une fois dans le code commun ; chaque cible compilée doit fournir exactement un actual correspondant sinon la compilation échoue, sans repli (d) ni aiguillage runtime (b). La direction ne s'inverse jamais (c) : le commun déclare, les plateformes réalisent."
+      }
+    },
+    {
+      "id": "ex-listener-identity",
+      "kind": "predict-output",
+      "difficulty": 3,
+      "prompt": {
+        "en": "An event bus stores listeners in a Set. What does this print?",
+        "fr": "Un bus d'événements stocke les listeners dans un Set. Qu'affiche ceci ?"
+      },
+      "code": "// Java interface: interface Handler { void on(String event); }\n\nfun main() {\n    val bus = Bus()\n    val handler = Handler { println(\"got: $it\") }\n    bus.add(handler)\n    bus.add(Handler { println(\"got: $it\") })\n    bus.remove(handler)\n    bus.remove(Handler { println(\"got: $it\") })\n    println(bus.count())\n}",
+      "choices": [
+        { "id": "a", "label": { "en": "0", "fr": "0" } },
+        { "id": "b", "label": { "en": "1", "fr": "1" } },
+        { "id": "c", "label": { "en": "2", "fr": "2" } },
+        {
+          "id": "d",
+          "label": {
+            "en": "It does not compile: Handler is not a fun interface",
+            "fr": "Ne compile pas : Handler n'est pas une fun interface"
+          }
+        }
+      ],
+      "answerId": "b",
+      "explanation": {
+        "en": "Java functional interfaces SAM-convert from Kotlin lambdas (d is wrong). Each conversion creates an object: add(handler) and add(new lambda) store two listeners. remove(handler) removes the first (same reference). remove(new lambda) removes nothing: that third object equals neither stored listener. One remains. Moral: keep the reference you intend to unregister.",
+        "fr": "Les interfaces fonctionnelles Java se SAM-convertissent depuis les lambdas Kotlin (d est faux). Chaque conversion crée un objet : add(handler) et add(nouvelle lambda) stockent deux listeners. remove(handler) retire le premier (même référence). remove(nouvelle lambda) ne retire rien : ce troisième objet n'égale aucun listener stocké. Il en reste un. Morale : gardez la référence que vous comptez désenregistrer."
+      }
+    }
+  ]
+}

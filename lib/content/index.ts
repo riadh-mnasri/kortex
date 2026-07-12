@@ -19,6 +19,7 @@ import collections from "@/content/packs/kotlin/modules/collections.json";
 import scopeFunctions from "@/content/packs/kotlin/modules/scope-functions.json";
 import coroutines from "@/content/packs/kotlin/modules/coroutines.json";
 import advanced from "@/content/packs/kotlin/modules/advanced.json";
+import interopMultiplatform from "@/content/packs/kotlin/modules/interop-multiplatform.json";
 
 export const pack = packManifest as unknown as Pack;
 
@@ -32,6 +33,7 @@ const modules: Record<string, Module> = {
   [scopeFunctions.id]: scopeFunctions as unknown as Module,
   [coroutines.id]: coroutines as unknown as Module,
   [advanced.id]: advanced as unknown as Module,
+  [interopMultiplatform.id]: interopMultiplatform as unknown as Module,
 };
 
 export function getModule(id: string): Module | undefined {
