@@ -1,0 +1,445 @@
+{
+  "id": "scope-functions",
+  "title": { "en": "Scope functions", "fr": "Fonctions de portée" },
+  "tagline": {
+    "en": "let, run, with, apply, also",
+    "fr": "let, run, with, apply, also"
+  },
+  "icon": "🔭",
+  "lessons": [
+    {
+      "id": "choosing-matrix",
+      "title": {
+        "en": "The five functions & the choosing matrix",
+        "fr": "Les cinq fonctions & la matrice de choix"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "All five run a lambda against a context object; they differ on exactly two axes. Axis 1, how the object is exposed: as `this` (receiver: run, with, apply) or as `it` (argument: let, also). Axis 2, what is returned: the lambda result (let, run, with) or the context object itself (apply, also).",
+            "fr": "Les cinq exécutent une lambda sur un objet de contexte ; elles ne diffèrent que sur deux axes. Axe 1, l'exposition de l'objet : en `this` (récepteur : run, with, apply) ou en `it` (argument : let, also). Axe 2, la valeur renvoyée : le résultat de la lambda (let, run, with) ou l'objet de contexte lui-même (apply, also)."
+          }
+        },
+        {
+          "type": "code",
+          "code": "// object as `this`          object as `it`\n// returns lambda result:   run, with          let\n// returns context object:  apply              also\n\nval len = name.let { it.trim().length }   // it, result\nval user = User().apply { active = true } // this, object",
+          "caption": {
+            "en": "Two axes, five functions: the whole topic fits in this table.",
+            "fr": "Deux axes, cinq fonctions : tout le sujet tient dans ce tableau."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "`with(obj) { ... }` is the odd one out syntactically: the object is a parameter, not a receiver of the call. Semantically it is run without the safe-call ergonomics; prefer it when the object is guaranteed non-null and you are grouping calls, not chaining.",
+            "fr": "`with(obj) { ... }` est l'exception syntaxique : l'objet est un paramètre, pas le récepteur de l'appel. Sémantiquement c'est run sans l'ergonomie du safe-call ; préférez-le quand l'objet est garanti non-nul et que vous groupez des appels sans chaîner."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Decision shortcut: configuring an object -> apply; side effect in a chain -> also; transforming a nullable -> ?.let; computing a result from an object -> run (or with when not chaining). If none fits obviously, plain code without a scope function is the right answer.",
+            "fr": "Raccourci de décision : configurer un objet -> apply ; effet de bord dans une chaîne -> also ; transformer un nullable -> ?.let ; calculer un résultat depuis un objet -> run (ou with hors chaîne). Si rien ne s'impose, du code simple sans fonction de portée est la bonne réponse."
+          }
+        }
+      ]
+    },
+    {
+      "id": "idiomatic-uses",
+      "title": {
+        "en": "Idiomatic patterns",
+        "fr": "Patterns idiomatiques"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "`?.let` is the canonical null-guarded block: the lambda runs only when the value is non-null, and `it` is smart-cast inside, even for mutable properties (the value is captured at call time). `apply` shines for configuration: create, configure, keep the object. `also` injects side effects (logging, validation) into call chains without breaking them.",
+            "fr": "`?.let` est le bloc gardé contre null canonique : la lambda ne s'exécute que si la valeur est non-nulle, et `it` est smart-casté à l'intérieur, même pour des propriétés mutables (la valeur est capturée à l'appel). `apply` brille pour la configuration : créer, configurer, garder l'objet. `also` injecte des effets de bord (log, validation) dans les chaînes sans les casser."
+          }
+        },
+        {
+          "type": "code",
+          "code": "val server = ServerConfig().apply {\n    port = 3737\n    tls = true\n}\n\nrequest.header(\"trace-id\")\n    ?.let { tracer.attach(it) }\n\nreturn parse(input)\n    .also { logger.debug(\"parsed: {}\", it) }\n    .toDomain()"
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "`takeIf { predicate }` returns the object or null, turning conditions into chainable expressions: `input.takeIf { it.isNotBlank() }?.let(::process) ?: fallback()`. Its twin takeUnless inverts the predicate. Both pair naturally with elvis for default handling.",
+            "fr": "`takeIf { prédicat }` renvoie l'objet ou null, transformant les conditions en expressions chaînables : `input.takeIf { it.isNotBlank() }?.let(::process) ?: fallback()`. Son jumeau takeUnless inverse le prédicat. Les deux s'associent naturellement à elvis pour les valeurs par défaut."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "`x?.let { ... } ?: fallback()` is NOT equivalent to if/else: if the let block itself evaluates to null (its last expression), the elvis branch runs even though x was non-null. Use if (x != null) when the block may produce null.",
+            "fr": "`x?.let { ... } ?: fallback()` n'est PAS équivalent à if/else : si le bloc let lui-même vaut null (sa dernière expression), la branche elvis s'exécute alors que x était non-nul. Utilisez if (x != null) quand le bloc peut produire null."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "run without receiver (`run { ... }`) creates an expression block: handy for initializing a val from multi-statement logic, or for making a when subject out of several lines.",
+            "fr": "run sans récepteur (`run { ... }`) crée un bloc-expression : pratique pour initialiser un val depuis une logique multi-lignes, ou fabriquer le sujet d'un when en plusieurs instructions."
+          }
+        }
+      ]
+    },
+    {
+      "id": "pitfalls",
+      "title": {
+        "en": "Pitfalls & restraint",
+        "fr": "Pièges & sobriété"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "Nesting scope functions shadows contexts: inside `a.run { b.run { ... } }`, this means b and reaching a needs a label (`this@outerRun`) that Kotlin does not give to run on lambdas without names. Nested `let`s shadow `it` the same way; rename explicitly (`let { user -> ... }`) as soon as you nest.",
+            "fr": "Imbriquer les fonctions de portée masque les contextes : dans `a.run { b.run { ... } }`, this désigne b et atteindre a exige une étiquette peu maniable. Les `let` imbriqués masquent `it` de la même façon ; renommez explicitement (`let { user -> ... }`) dès que vous imbriquez."
+          }
+        },
+        {
+          "type": "code",
+          "code": "// Confusing: which `this` receives setTitle?\nwindow.apply {\n    dialog.apply {\n        setTitle(\"?\")   // dialog wins; window needs this@apply... which one?\n    }\n}\n\n// Clear: name things\nwindow.apply { win ->  }         // apply has no it: use also\ndialog.also { dlg -> dlg.title = \"OK\" }"
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "apply returns the receiver, not your last expression: `val port = config.apply { load() }.port` works, but `val port = config.apply { load(); port }` assigns the CONFIG, not the port; the trailing expression is discarded. When the result of the block matters, you wanted run.",
+            "fr": "apply renvoie le récepteur, pas votre dernière expression : `val port = config.apply { load() }.port` fonctionne, mais `val port = config.apply { load(); port }` affecte la CONFIG, pas le port ; l'expression finale est jetée. Quand le résultat du bloc compte, c'est run qu'il fallait."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Restraint is part of mastery: scope functions compress code but tax the reader when overused. A chain of three different scope functions is usually worse than three named vals. Reserve them for the idioms above; do not let `it` soup replace domain names.",
+            "fr": "La sobriété fait partie de la maîtrise : les fonctions de portée compriment le code mais taxent le lecteur en cas d'abus. Une chaîne de trois fonctions de portée différentes vaut généralement moins que trois vals nommés. Réservez-les aux idiomes ci-dessus ; ne laissez pas la soupe de `it` remplacer les noms métier."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "In equals/compareTo-heavy code or DSLs where this is already meaningful, prefer the it-based functions (let, also): they do not steal the receiver and keep member access unambiguous.",
+            "fr": "Dans du code où this est déjà signifiant (DSL, membres), préférez les fonctions à it (let, also) : elles ne volent pas le récepteur et gardent l'accès aux membres non ambigu."
+          }
+        }
+      ]
+    }
+  ],
+  "flashcards": [
+    {
+      "id": "fc-matrix",
+      "front": {
+        "en": "Draw the scope function matrix: context exposure vs return value.",
+        "fr": "Dessinez la matrice des fonctions de portée : exposition du contexte vs valeur renvoyée."
+      },
+      "back": {
+        "en": "this + lambda result: run, with. this + context object: apply. it + lambda result: let. it + context object: also. Two axes classify all five.",
+        "fr": "this + résultat de lambda : run, with. this + objet de contexte : apply. it + résultat de lambda : let. it + objet de contexte : also. Deux axes classent les cinq."
+      }
+    },
+    {
+      "id": "fc-let-null",
+      "front": {
+        "en": "What makes `value?.let { ... }` the idiomatic null guard?",
+        "fr": "Qu'est-ce qui fait de `value?.let { ... }` le garde-null idiomatique ?"
+      },
+      "back": {
+        "en": "The safe call skips the lambda entirely on null, and inside, it holds a captured non-null value, so it works even on mutable properties where an if-check could not smart-cast. Combines with elvis for the else branch (mind blocks that themselves return null).",
+        "fr": "Le safe call saute entièrement la lambda sur null, et à l'intérieur, it détient une valeur capturée non-nulle : cela marche même sur les propriétés mutables où un if ne pourrait pas smart-caster. Se combine avec elvis pour le else (attention aux blocs renvoyant eux-mêmes null)."
+      }
+    },
+    {
+      "id": "fc-apply-usecase",
+      "front": {
+        "en": "The canonical use case for apply?",
+        "fr": "Le cas d'usage canonique d'apply ?"
+      },
+      "back": {
+        "en": "Object configuration: create, set properties as this, get the object back. val cfg = Config().apply { port = 3737; tls = true }. Returning the receiver is what makes it chainable into assignments.",
+        "fr": "La configuration d'objet : créer, régler les propriétés via this, récupérer l'objet. val cfg = Config().apply { port = 3737; tls = true }. Renvoyer le récepteur est ce qui le rend chaînable dans les affectations."
+      }
+    },
+    {
+      "id": "fc-also-usecase",
+      "front": {
+        "en": "The canonical use case for also?",
+        "fr": "Le cas d'usage canonique d'also ?"
+      },
+      "back": {
+        "en": "Side effects inside a chain without breaking it: .also { logger.debug(it) }, .also { require(it.isValid) }. The object passes through unchanged; it (not this) keeps the effect visually distinct from the object's own API.",
+        "fr": "Les effets de bord dans une chaîne sans la casser : .also { logger.debug(it) }, .also { require(it.isValid) }. L'objet traverse inchangé ; it (et non this) garde l'effet visuellement distinct de l'API de l'objet."
+      }
+    },
+    {
+      "id": "fc-run-vs-with",
+      "front": {
+        "en": "run vs with: same semantics, so how do you choose?",
+        "fr": "run vs with : même sémantique, comment choisir ?"
+      },
+      "back": {
+        "en": "run is an extension: it chains (obj.run) and handles nullables (obj?.run). with(obj) { } takes the object as an argument: reads best for grouping several calls on a known non-null object. Result is the lambda's last expression in both.",
+        "fr": "run est une extension : il chaîne (obj.run) et gère les nullables (obj?.run). with(obj) { } prend l'objet en argument : idéal pour grouper des appels sur un objet connu non-nul. Le résultat est la dernière expression de la lambda dans les deux cas."
+      }
+    },
+    {
+      "id": "fc-takeif",
+      "front": {
+        "en": "What does takeIf return and what is its idiomatic companion?",
+        "fr": "Que renvoie takeIf et quel est son compagnon idiomatique ?"
+      },
+      "back": {
+        "en": "The receiver if the predicate holds, else null. Companion: the safe-call/elvis pair. port.takeIf { it in 1..65535 } ?: DEFAULT_PORT. takeUnless is the negated twin.",
+        "fr": "Le récepteur si le prédicat est vrai, sinon null. Compagnon : le duo safe-call/elvis. port.takeIf { it in 1..65535 } ?: DEFAULT_PORT. takeUnless est le jumeau négatif."
+      }
+    },
+    {
+      "id": "fc-apply-return-trap",
+      "front": {
+        "en": "Why is `val x = obj.apply { compute() }` suspicious when compute() produces the value you want?",
+        "fr": "Pourquoi `val x = obj.apply { compute() }` est-il suspect quand compute() produit la valeur voulue ?"
+      },
+      "back": {
+        "en": "apply discards the lambda's result and returns the receiver: x is obj, not compute()'s result. run (or let) returns the lambda result. Mixing them up compiles fine when types align by accident, a quiet logic bug.",
+        "fr": "apply jette le résultat de la lambda et renvoie le récepteur : x vaut obj, pas le résultat de compute(). run (ou let) renvoie le résultat de la lambda. La confusion compile quand les types s'alignent par hasard, un bug logique silencieux."
+      }
+    },
+    {
+      "id": "fc-nested-shadowing",
+      "front": {
+        "en": "What goes wrong when you nest two `let` blocks (or two `apply` blocks)?",
+        "fr": "Que se passe-t-il de fâcheux en imbriquant deux blocs `let` (ou deux `apply`) ?"
+      },
+      "back": {
+        "en": "The inner block shadows it (or this): the outer context becomes hard or impossible to reference cleanly. Fix by naming lambda parameters (let { user -> ... }) or restructuring; shadowed receivers are a top source of scope-function bugs.",
+        "fr": "Le bloc interne masque it (ou this) : le contexte externe devient difficile voire impossible à référencer proprement. Corrigez en nommant les paramètres (let { user -> ... }) ou en restructurant ; les récepteurs masqués sont une source majeure de bugs."
+      }
+    },
+    {
+      "id": "fc-let-elvis-trap",
+      "front": {
+        "en": "When is `x?.let { ... } ?: fallback()` NOT equivalent to if (x != null) ... else fallback()?",
+        "fr": "Quand `x?.let { ... } ?: fallback()` n'est-il PAS équivalent à if (x != null) ... else fallback() ?"
+      },
+      "back": {
+        "en": "When the let block's last expression is itself null: elvis then triggers even though x was non-null, so fallback runs in a case if/else would not. Blocks with nullable results need a real if/else.",
+        "fr": "Quand la dernière expression du bloc let vaut elle-même null : elvis se déclenche alors même que x était non-nul, fallback s'exécute là où if/else ne l'aurait pas fait. Les blocs à résultat nullable exigent un vrai if/else."
+      }
+    },
+    {
+      "id": "fc-restraint",
+      "front": {
+        "en": "What is the professional rule of thumb on scope function usage?",
+        "fr": "Quelle est la règle professionnelle sur l'usage des fonctions de portée ?"
+      },
+      "back": {
+        "en": "Use them for the established idioms (configuration, null guard, chain side effects); avoid chaining several different ones and avoid `it` soup replacing named values. When in doubt, named vals and plain ifs read better in reviews.",
+        "fr": "Les employer pour les idiomes établis (configuration, garde-null, effets dans les chaînes) ; éviter d'en chaîner plusieurs différentes et la soupe de `it` remplaçant les valeurs nommées. Dans le doute, vals nommés et ifs simples se relisent mieux."
+      }
+    }
+  ],
+  "exercises": [
+    {
+      "id": "ex-apply-vs-run",
+      "kind": "predict-output",
+      "difficulty": 2,
+      "prompt": {
+        "en": "What does this program print?",
+        "fr": "Qu'affiche ce programme ?"
+      },
+      "code": "class Counter { var n = 0; fun inc(): Int { n++; return n } }\n\nfun main() {\n    val a = Counter().apply { inc(); inc() }\n    val b = Counter().run { inc(); inc() }\n    println(a::class.simpleName)\n    println(b)\n}",
+      "choices": [
+        { "id": "a", "label": { "en": "Counter / 2", "fr": "Counter / 2" } },
+        { "id": "b", "label": { "en": "Counter / Counter", "fr": "Counter / Counter" } },
+        { "id": "c", "label": { "en": "Int / 2", "fr": "Int / 2" } },
+        { "id": "d", "label": { "en": "Counter / 1", "fr": "Counter / 1" } }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "apply returns the receiver: a is the Counter instance (simpleName prints Counter). run returns the lambda's last expression: the second inc() returned 2, so b is the Int 2. Same block, different results, chosen by one word.",
+        "fr": "apply renvoie le récepteur : a est l'instance Counter (simpleName affiche Counter). run renvoie la dernière expression de la lambda : le second inc() a renvoyé 2, b est donc l'Int 2. Même bloc, résultats différents, choisis par un seul mot."
+      }
+    },
+    {
+      "id": "ex-let-elvis",
+      "kind": "predict-output",
+      "difficulty": 3,
+      "prompt": {
+        "en": "What does this program print?",
+        "fr": "Qu'affiche ce programme ?"
+      },
+      "code": "val emails = mapOf(\"riadh\" to null, \"sany\" to \"sany@mail.dev\")\n\nfun lookup(user: String): String =\n    emails[user]?.let { it.uppercase() } ?: \"NO EMAIL\"\n\nfun main() {\n    println(lookup(\"sany\"))\n    println(lookup(\"riadh\"))\n    println(lookup(\"seji\"))\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "SANY@MAIL.DEV / NO EMAIL / NO EMAIL",
+            "fr": "SANY@MAIL.DEV / NO EMAIL / NO EMAIL"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "SANY@MAIL.DEV / null / NO EMAIL",
+            "fr": "SANY@MAIL.DEV / null / NO EMAIL"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "SANY@MAIL.DEV / NO EMAIL / throws NoSuchElementException",
+            "fr": "SANY@MAIL.DEV / NO EMAIL / lève NoSuchElementException"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "sany@mail.dev / NO EMAIL / NO EMAIL",
+            "fr": "sany@mail.dev / NO EMAIL / NO EMAIL"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "For sany the value exists: uppercase gives SANY@MAIL.DEV. For riadh the key exists but maps to null; for seji the key is absent and indexing returns null too: both skip the let via the safe call and land on the elvis. Map access folds \"absent\" and \"present but null\" into the same null, a subtlety worth knowing.",
+        "fr": "Pour sany la valeur existe : uppercase donne SANY@MAIL.DEV. Pour riadh la clé existe mais vaut null ; pour seji la clé est absente et l'indexation renvoie null aussi : les deux sautent le let via le safe call et tombent sur l'elvis. L'accès map replie \"absent\" et \"présent mais null\" dans le même null, subtilité à connaître."
+      }
+    },
+    {
+      "id": "ex-choose-function",
+      "kind": "mcq",
+      "difficulty": 1,
+      "prompt": {
+        "en": "You build a Retrofit client: create the builder, set three options, then keep the builder to reuse. Which scope function fits best?",
+        "fr": "Vous construisez un client Retrofit : créer le builder, régler trois options, puis garder le builder pour le réutiliser. Quelle fonction de portée convient le mieux ?"
+      },
+      "choices": [
+        { "id": "a", "label": { "en": "apply", "fr": "apply" } },
+        { "id": "b", "label": { "en": "let", "fr": "let" } },
+        { "id": "c", "label": { "en": "run", "fr": "run" } },
+        { "id": "d", "label": { "en": "also with named it", "fr": "also avec it nommé" } }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "Configuration that must return the configured object is apply's exact contract: properties set through this, receiver returned. let and run would return the last expression (the third setter's result); also works but this-based access reads more naturally for configuration.",
+        "fr": "La configuration qui doit renvoyer l'objet configuré est exactement le contrat d'apply : propriétés réglées via this, récepteur renvoyé. let et run renverraient la dernière expression (le résultat du troisième setter) ; also fonctionne mais l'accès via this se lit plus naturellement pour de la configuration."
+      }
+    },
+    {
+      "id": "ex-nested-shadow",
+      "kind": "predict-output",
+      "difficulty": 3,
+      "prompt": {
+        "en": "What does this program print?",
+        "fr": "Qu'affiche ce programme ?"
+      },
+      "code": "fun main() {\n    val outer = \"outer\"\n    val result = outer.let {\n        \"inner\".let {\n            it.length\n        }\n    }\n    println(result)\n}",
+      "choices": [
+        { "id": "a", "label": { "en": "5", "fr": "5" } },
+        { "id": "b", "label": { "en": "5 (but it refers to outer)", "fr": "5 (mais it désigne outer)" } },
+        { "id": "c", "label": { "en": "It does not compile: ambiguous it", "fr": "Ne compile pas : it ambigu" } },
+        { "id": "d", "label": { "en": "inner", "fr": "inner" } }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "The inner let shadows the outer's it: it.length reads \"inner\".length = 5, which becomes the inner block's result, then the outer block's result. It compiles (shadowing is legal, with a lint warning at most). The outer it became unreachable, which is exactly why nested lambdas deserve named parameters.",
+        "fr": "Le let interne masque le it externe : it.length lit \"inner\".length = 5, qui devient le résultat du bloc interne, puis du bloc externe. Ça compile (le masquage est légal, tout au plus un avertissement). Le it externe est devenu inatteignable, raison exacte pour laquelle les lambdas imbriquées méritent des paramètres nommés."
+      }
+    },
+    {
+      "id": "ex-takeif-chain",
+      "kind": "predict-output",
+      "difficulty": 2,
+      "prompt": {
+        "en": "What does this program print?",
+        "fr": "Qu'affiche ce programme ?"
+      },
+      "code": "fun normalize(raw: String?): String =\n    raw?.trim()\n        ?.takeIf { it.length >= 3 }\n        ?.lowercase()\n        ?: \"anonymous\"\n\nfun main() {\n    println(normalize(\"  RiADH  \"))\n    println(normalize(\" ab \"))\n    println(normalize(null))\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "riadh / anonymous / anonymous",
+            "fr": "riadh / anonymous / anonymous"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "riadh / ab / anonymous",
+            "fr": "riadh / ab / anonymous"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "RiADH / anonymous / anonymous",
+            "fr": "RiADH / anonymous / anonymous"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "riadh / anonymous / throws NullPointerException",
+            "fr": "riadh / anonymous / lève NullPointerException"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "\"  RiADH  \" trims to \"RiADH\" (5 chars), passes takeIf, lowercases to riadh. \" ab \" trims to \"ab\" (2 chars): takeIf returns null and the chain falls to elvis. null skips everything via safe calls. takeIf converts a condition into null-flow, letting one elvis handle both failure modes.",
+        "fr": "\"  RiADH  \" se trim en \"RiADH\" (5 caractères), passe takeIf, devient riadh. \" ab \" se trim en \"ab\" (2 caractères) : takeIf renvoie null et la chaîne tombe sur elvis. null saute tout via les safe calls. takeIf convertit une condition en flux nullable, un seul elvis gérant les deux modes d'échec."
+      }
+    },
+    {
+      "id": "ex-also-apply-bug",
+      "kind": "find-bug",
+      "difficulty": 2,
+      "prompt": {
+        "en": "This audit log always prints the same object id, never the size. Where is the bug?",
+        "fr": "Ce log d'audit affiche toujours l'id de l'objet, jamais la taille. Où est le bug ?"
+      },
+      "code": "fun load(ids: List<Long>): List<Row> =\n    repository.fetch(ids)\n        .apply { logger.info(\"fetched: {}\", size) }\n        .filter { it.isActive }\n        .apply { logger.info(\"active: {}\", this) }   // logs the LIST fine\n        .map { it.normalize() }\n\n// Meanwhile, a teammate \"simplified\" another logger:\nfun save(row: Row) {\n    row.apply { logger.info(\"saving {}\", it) }   // does not compile\n    repository.save(row)\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "apply exposes the context as this, not it: `it` does not exist in an apply block. Use also (it-based) for side effects, the convention that avoids exactly this confusion",
+            "fr": "apply expose le contexte en this, pas en it : `it` n'existe pas dans un bloc apply. Utilisez also (basé sur it) pour les effets de bord, la convention qui évite exactement cette confusion"
+          }
+        },
+        {
+          "id": "b",
+          "label": {
+            "en": "logger.info cannot take two arguments",
+            "fr": "logger.info ne peut pas prendre deux arguments"
+          }
+        },
+        {
+          "id": "c",
+          "label": {
+            "en": "apply cannot be called in the middle of a chain",
+            "fr": "apply ne peut pas s'appeler au milieu d'une chaîne"
+          }
+        },
+        {
+          "id": "d",
+          "label": {
+            "en": "filter must come before the first apply",
+            "fr": "filter doit précéder le premier apply"
+          }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "In apply the context object is this; there is no it, so `logger.info(\"saving {}\", it)` does not compile (or worse, captures an enclosing it). also passes the object as it and returns it unchanged: the idiomatic choice for logging inside chains. Team convention: apply to configure, also to observe.",
+        "fr": "Dans apply, l'objet de contexte est this ; it n'existe pas, donc `logger.info(\"saving {}\", it)` ne compile pas (ou pire, capture un it englobant). also passe l'objet en it et le renvoie inchangé : le choix idiomatique pour logger dans les chaînes. Convention d'équipe : apply pour configurer, also pour observer."
+      }
+    }
+  ]
+}

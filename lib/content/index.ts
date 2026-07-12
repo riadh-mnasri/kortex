@@ -16,6 +16,7 @@ import functions from "@/content/packs/kotlin/modules/functions.json";
 import classes from "@/content/packs/kotlin/modules/classes.json";
 import generics from "@/content/packs/kotlin/modules/generics.json";
 import collections from "@/content/packs/kotlin/modules/collections.json";
+import scopeFunctions from "@/content/packs/kotlin/modules/scope-functions.json";
 import coroutines from "@/content/packs/kotlin/modules/coroutines.json";
 
 export const pack = packManifest as unknown as Pack;
@@ -27,6 +28,7 @@ const modules: Record<string, Module> = {
   [classes.id]: classes as unknown as Module,
   [generics.id]: generics as unknown as Module,
   [collections.id]: collections as unknown as Module,
+  [scopeFunctions.id]: scopeFunctions as unknown as Module,
   [coroutines.id]: coroutines as unknown as Module,
 };
 
