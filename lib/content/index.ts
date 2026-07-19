@@ -17,9 +17,11 @@ import classes from "@/content/packs/kotlin/modules/classes.json";
 import generics from "@/content/packs/kotlin/modules/generics.json";
 import collections from "@/content/packs/kotlin/modules/collections.json";
 import scopeFunctions from "@/content/packs/kotlin/modules/scope-functions.json";
+import enumsExceptions from "@/content/packs/kotlin/modules/enums-exceptions.json";
 import coroutines from "@/content/packs/kotlin/modules/coroutines.json";
 import advanced from "@/content/packs/kotlin/modules/advanced.json";
 import interopMultiplatform from "@/content/packs/kotlin/modules/interop-multiplatform.json";
+import packagesVisibilityTesting from "@/content/packs/kotlin/modules/packages-visibility-testing.json";
 import idioms from "@/content/packs/kotlin/modules/idioms.json";
 import whatsNew from "@/content/packs/kotlin/modules/whats-new.json";
 
@@ -33,9 +35,11 @@ const modules: Record<string, Module> = {
   [generics.id]: generics as unknown as Module,
   [collections.id]: collections as unknown as Module,
   [scopeFunctions.id]: scopeFunctions as unknown as Module,
+  [enumsExceptions.id]: enumsExceptions as unknown as Module,
   [coroutines.id]: coroutines as unknown as Module,
   [advanced.id]: advanced as unknown as Module,
   [interopMultiplatform.id]: interopMultiplatform as unknown as Module,
+  [packagesVisibilityTesting.id]: packagesVisibilityTesting as unknown as Module,
   [idioms.id]: idioms as unknown as Module,
   [whatsNew.id]: whatsNew as unknown as Module,
 };

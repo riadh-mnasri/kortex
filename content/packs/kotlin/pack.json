@@ -64,6 +64,16 @@
       "status": "available"
     },
     {
+      "id": "enums-exceptions",
+      "title": { "en": "Enums & exceptions", "fr": "Enums & exceptions" },
+      "tagline": {
+        "en": "Enum classes, throw/try/finally, custom exceptions, Nothing",
+        "fr": "Enum classes, throw/try/finally, exceptions custom, Nothing"
+      },
+      "icon": "🧯",
+      "status": "available"
+    },
+    {
       "id": "coroutines",
       "title": { "en": "Coroutines", "fr": "Coroutines" },
       "tagline": {
@@ -91,6 +101,16 @@
         "fr": "Interopérabilité, Kotlin Multiplatform"
       },
       "icon": "🌉",
+      "status": "available"
+    },
+    {
+      "id": "packages-visibility-testing",
+      "title": { "en": "Packages, visibility & testing", "fr": "Packages, visibilité & tests" },
+      "tagline": {
+        "en": "Imports, public/internal/protected/private, kotlin.test",
+        "fr": "Imports, public/internal/protected/private, kotlin.test"
+      },
+      "icon": "🧪",
       "status": "available"
     },
     {

@@ -1,0 +1,526 @@
+{
+  "id": "packages-visibility-testing",
+  "title": { "en": "Packages, visibility & testing", "fr": "Packages, visibilité & tests" },
+  "tagline": {
+    "en": "Imports, public/internal/protected/private, kotlin.test",
+    "fr": "Imports, public/internal/protected/private, kotlin.test"
+  },
+  "icon": "🧪",
+  "lessons": [
+    {
+      "id": "packages-imports",
+      "title": {
+        "en": "Packages & imports",
+        "fr": "Packages & imports"
+      },
+      "minutes": 3,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "A `package` declaration, if present, must be the first non-comment line and applies to the whole file. Unlike Java, the directory layout does not have to mirror the package name — the compiler does not check it — though following the convention keeps IDE navigation and build tooling happy.",
+            "fr": "Une déclaration `package`, si présente, doit être la première ligne non-commentaire et s'applique à tout le fichier. Contrairement à Java, l'arborescence de dossiers n'a pas à refléter le nom du package — le compilateur ne le vérifie pas — même si suivre la convention garde la navigation IDE et l'outillage de build heureux."
+          }
+        },
+        {
+          "type": "code",
+          "code": "package com.kortex.billing\n\nimport kotlin.math.max\nimport java.time.Instant as JInstant   // alias avoids a name clash\nimport com.kortex.billing.internal.*  // wildcard: every top-level name"
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Kotlin auto-imports a set of packages in every file, so `kotlin.collections.*`, `kotlin.text.*`, `kotlin.ranges.*`, `kotlin.sequences.*`, `kotlin.io.*` and plain `kotlin.*` need no explicit import — that's why `listOf`, `String.trim` or `IntRange` just work. `import ... as X` renames an imported symbol, the standard fix for a clash between two libraries exposing the same class name.",
+            "fr": "Kotlin importe automatiquement un ensemble de packages dans chaque fichier : `kotlin.collections.*`, `kotlin.text.*`, `kotlin.ranges.*`, `kotlin.sequences.*`, `kotlin.io.*` et `kotlin.*` n'ont besoin d'aucun import explicite — c'est pourquoi `listOf`, `String.trim` ou `IntRange` fonctionnent directement. `import ... as X` renomme un symbole importé, le correctif standard pour une collision entre deux bibliothèques exposant le même nom de classe."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "A wildcard import silently absorbs new top-level declarations added later to the imported package, including ones that shadow a name already in scope; large codebases often ban wildcard imports in style guides for exactly that reason, favoring explicit imports an IDE can manage automatically.",
+            "fr": "Un import wildcard absorbe silencieusement les futures déclarations top-level ajoutées au package importé, y compris celles qui masquent un nom déjà en portée ; les grands codebases interdisent souvent les imports wildcard dans leur guide de style pour cette raison précise, préférant des imports explicites qu'un IDE peut gérer automatiquement."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Extension functions must be imported like anything else to be in scope: an extension defined in another package is invisible until its containing package (or the specific function) is imported, even though it's called with receiver syntax (`x.foo()`) rather than a qualified call.",
+            "fr": "Les fonctions d'extension doivent être importées comme n'importe quoi d'autre pour être en portée : une extension définie dans un autre package est invisible tant que son package (ou la fonction précise) n'est pas importé, même si elle s'appelle avec la syntaxe récepteur (`x.foo()`) plutôt qu'un appel qualifié."
+          }
+        }
+      ]
+    },
+    {
+      "id": "visibility-modifiers",
+      "title": {
+        "en": "public, private, internal & protected",
+        "fr": "public, private, internal & protected"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "Four modifiers, and their meaning depends on where they're applied. `public` (the default) is visible everywhere. `private` on a top-level declaration means visible only in that FILE; `private` on a class member means visible only inside that CLASS body. `protected` only applies to class members: visible to the class and its subclasses, and does not exist at top level.",
+            "fr": "Quatre modificateurs, dont le sens dépend d'où ils s'appliquent. `public` (le défaut) est visible partout. `private` sur une déclaration top-level signifie visible uniquement dans ce FICHIER ; `private` sur un membre de classe signifie visible uniquement dans le corps de cette CLASSE. `protected` ne s'applique qu'aux membres de classe : visible par la classe et ses sous-classes, il n'existe pas au niveau top-level."
+          }
+        },
+        {
+          "type": "code",
+          "code": "// File: Pricing.kt\nprivate fun roundCents(x: Double): Long = ...   // visible only in Pricing.kt\n\ninternal class TaxTable { ... }                 // visible anywhere in this module\n\nclass Invoice {\n    private var total = 0L                      // visible only inside Invoice\n    protected open fun applyDiscount() { ... }  // visible to Invoice and subclasses\n}"
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "`internal` means visible anywhere in the same MODULE — a set of Kotlin files compiled together (typically one Gradle source set or one Maven/IntelliJ module) — regardless of package. It's the idiomatic way to expose something across your whole app or library while hiding it from external consumers, without Java's package-private ambiguity of also depending on directory layout.",
+            "fr": "`internal` signifie visible partout dans le même MODULE — un ensemble de fichiers Kotlin compilés ensemble (typiquement un source set Gradle ou un module Maven/IntelliJ) — quel que soit le package. C'est le moyen idiomatique d'exposer quelque chose à toute votre appli ou bibliothèque tout en le cachant des consommateurs externes, sans l'ambiguïté du package-private de Java qui dépend aussi de l'arborescence."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "A constructor can carry its own visibility, independent of the class: `class Temperature private constructor(val kelvin: Double)` forces every instantiation through a companion factory. Forgetting the class itself must stay instantiable some other way is a common first mistake — pair it with a `companion object` exposing named factory functions.",
+            "fr": "Un constructeur peut porter sa propre visibilité, indépendante de la classe : `class Temperature private constructor(val kelvin: Double)` force chaque instanciation à passer par une factory de companion. Oublier que la classe doit rester instanciable autrement est une erreur fréquente — associez-la à un `companion object` exposant des factories nommées."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Default to the most restrictive visibility that works, and widen only when a real caller needs it: `private` inside a class, then `internal`, `public` last. Kotlin's default of `public` for classes but `final`/non-open makes the common case (a plain public, non-extensible class) require zero modifiers.",
+            "fr": "Choisissez par défaut la visibilité la plus restrictive qui fonctionne, et n'élargissez que quand un vrai appelant en a besoin : `private` dans une classe, puis `internal`, `public` en dernier. Le défaut Kotlin de `public` pour les classes mais `final`/non-open fait que le cas courant (une classe publique non extensible) ne demande aucun modificateur."
+          }
+        }
+      ]
+    },
+    {
+      "id": "visibility-boundaries",
+      "title": {
+        "en": "Where visibility rules bite: inline & nesting",
+        "fr": "Où les règles de visibilité mordent : inline & imbrication"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "A `public inline fun` cannot reference a `private` or `internal` declaration in its body: inlining copies the function's bytecode into every call site, including call sites outside the module, which would leak the non-public declaration's implementation. The compiler rejects this at compile time rather than let the leak happen.",
+            "fr": "Une `public inline fun` ne peut pas référencer une déclaration `private` ou `internal` dans son corps : l'inlining copie le bytecode de la fonction à chaque site d'appel, y compris hors du module, ce qui fuiterait l'implémentation de la déclaration non-publique. Le compilateur rejette cela à la compilation plutôt que de laisser la fuite se produire."
+          }
+        },
+        {
+          "type": "code",
+          "code": "internal val cache = mutableMapOf<String, Int>()\n\npublic inline fun cachedSize(): Int = cache.size\n// error: public-api inline function cannot access non-public-api 'cache'\n\n@PublishedApi\ninternal val cache2 = mutableMapOf<String, Int>()\n\npublic inline fun cachedSize2(): Int = cache2.size  // OK: opted in explicitly"
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "`@PublishedApi` on an `internal` declaration is the escape hatch: it makes the declaration usable from public inline functions while keeping it out of the module's public API and IDE autocomplete for external callers. Reach for it only when the inline function genuinely needs that access; it's a deliberate, visible crack in the encapsulation.",
+            "fr": "`@PublishedApi` sur une déclaration `internal` est l'échappatoire : elle rend la déclaration utilisable depuis des fonctions inline publiques tout en la gardant hors de l'API publique du module et de l'autocomplétion IDE pour les appelants externes. N'y recourez que si la fonction inline en a réellement besoin ; c'est une brèche délibérée et visible dans l'encapsulation."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "Nesting does not grant automatic access either direction: a `private` member declared inside a nested or inner class is invisible to the ENCLOSING class, not just to outsiders. `class Outer { inner class Inner { private val secret = 1 }; fun peek(i: Inner) = i.secret }` fails to compile — Outer has no special reach into Inner's privates.",
+            "fr": "L'imbrication n'accorde pas non plus d'accès automatique dans un sens ou l'autre : un membre `private` déclaré dans une classe imbriquée ou interne est invisible pour la classe ENGLOBANTE, pas seulement pour l'extérieur. `class Outer { inner class Inner { private val secret = 1 }; fun peek(i: Inner) = i.secret }` ne compile pas — Outer n'a aucun accès privilégié aux privés d'Inner."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Library authors can enable Gradle's `explicitApi()` mode: it forces every public declaration to state its visibility and return type explicitly, turning an accidentally-public function (Kotlin's inferred-type, default-public convenience) into a compile error until you decide on purpose.",
+            "fr": "Les auteurs de bibliothèques peuvent activer le mode `explicitApi()` de Gradle : il force chaque déclaration publique à préciser explicitement sa visibilité et son type de retour, transformant une fonction accidentellement publique (la commodité Kotlin du type inféré, public par défaut) en erreur de compilation tant qu'un choix n'est pas fait exprès."
+          }
+        }
+      ]
+    },
+    {
+      "id": "testing-fundamentals",
+      "title": {
+        "en": "kotlin.test: assertions, @Test, naming",
+        "fr": "kotlin.test : assertions, @Test, nommage"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "`kotlin.test` is a thin, multiplatform facade: the same `assertEquals`, `assertTrue`, `assertNotNull` and `@Test` compile on JVM, JS and Native, mapping to JUnit underneath on the JVM by default. Argument order matters: `assertEquals(expected, actual, message = null)` — expected first — matching JUnit5, unlike the message-first convention of old JUnit4 helpers.",
+            "fr": "`kotlin.test` est une façade fine, multiplateforme : les mêmes `assertEquals`, `assertTrue`, `assertNotNull` et `@Test` compilent sur JVM, JS et Native, s'appuyant sur JUnit par défaut côté JVM. L'ordre des arguments compte : `assertEquals(expected, actual, message = null)` — expected en premier — comme JUnit5, à l'inverse de la convention message-en-premier des anciens helpers JUnit4."
+          }
+        },
+        {
+          "type": "code",
+          "code": "import kotlin.test.Test\nimport kotlin.test.assertEquals\nimport kotlin.test.assertFailsWith\n\nclass PricingTest {\n    @Test\n    fun `applies the discount only above the threshold`() {\n        assertEquals(90, applyDiscount(100, threshold = 50))\n    }\n\n    @Test\n    fun `rejects a negative amount`() {\n        assertFailsWith<IllegalArgumentException> { applyDiscount(-1, threshold = 50) }\n    }\n}"
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Backtick-quoted test names (`` `applies the discount only above the threshold`() ``) are idiomatic Kotlin: readable in the test runner's report, no `camelCaseTortureTest` naming needed. `assertFailsWith<E> { block }` is `inline`/`reified`, so it needs no `Class<E>` argument, and it RETURNS the caught exception, letting you assert further on its message or fields.",
+            "fr": "Les noms de tests entre backticks (`` `applies the discount only above the threshold`() ``) sont idiomatiques en Kotlin : lisibles dans le rapport du test runner, sans besoin de nommage `camelCaseTortureTest`. `assertFailsWith<E> { block }` est `inline`/`reified`, donc sans argument `Class<E>` nécessaire, et il RENVOIE l'exception attrapée, permettant d'affirmer davantage sur son message ou ses champs."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "`assertFailsWith<IllegalArgumentException>` also passes for any SUBTYPE of that exception, same as a `catch` clause — a test asserting on the base `Exception` type silently accepts a completely wrong exception class. Assert on the most specific type the code contract actually promises.",
+            "fr": "`assertFailsWith<IllegalArgumentException>` passe aussi pour tout SOUS-TYPE de cette exception, comme une clause `catch` — un test affirmant sur le type de base `Exception` accepte silencieusement une classe d'exception complètement différente. Affirmez sur le type le plus précis que le contrat du code promet réellement."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Test source sets (conventionally `src/test/kotlin`, mirroring `src/main/kotlin`) are configured by most Kotlin/Gradle setups as a \"friend\" of the main source set: test code can call `internal` declarations from main directly, no visibility relaxation needed just to make something testable.",
+            "fr": "Les source sets de test (par convention `src/test/kotlin`, miroir de `src/main/kotlin`) sont configurés par la plupart des setups Kotlin/Gradle comme \"amis\" du source set principal : le code de test peut appeler directement les déclarations `internal` du main, aucun assouplissement de visibilité requis juste pour rendre quelque chose testable."
+          }
+        }
+      ]
+    },
+    {
+      "id": "testing-patterns",
+      "title": {
+        "en": "Fakes vs mocks, and testing suspend code",
+        "fr": "Fakes vs mocks, et tester du code suspend"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "A hand-written fake — a small class implementing the real interface with in-memory logic — tends to age better than a mocking framework's stub: it behaves like the real dependency (a fake repository actually stores what you save), catches contract violations a mock would happily let through, and needs no library-specific syntax to read.",
+            "fr": "Un fake écrit à la main — une petite classe implémentant l'interface réelle avec une logique en mémoire — vieillit souvent mieux qu'un stub de framework de mock : il se comporte comme la vraie dépendance (un repository fake stocke réellement ce que vous sauvegardez), attrape des violations de contrat qu'un mock laisserait passer, et ne demande aucune syntaxe propre à une bibliothèque pour être lu."
+          }
+        },
+        {
+          "type": "code",
+          "code": "class FakeUserRepository : UserRepository {\n    private val store = mutableMapOf<Long, User>()\n    override fun save(user: User) { store[user.id] = user }\n    override fun find(id: Long): User? = store[id]\n}\n\n@Test\nfun `save then find returns the same user`() {\n    val repo = FakeUserRepository()\n    repo.save(User(1, \"sany@mail.dev\"))\n    assertEquals(\"sany@mail.dev\", repo.find(1)?.email)\n}"
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Reach for a mocking library instead when the test's whole point IS the interaction — verifying a method was called exactly once, or with specific arguments, where a fake's stored state can't express the assertion. Both styles coexist fine in one codebase; picking per-dependency, not per-project, is the pragmatic default.",
+            "fr": "Préférez une bibliothèque de mock quand le but même du test EST l'interaction — vérifier qu'une méthode a été appelée exactement une fois, ou avec des arguments précis, là où l'état stocké d'un fake ne peut pas exprimer l'assertion. Les deux styles coexistent bien dans un même codebase ; choisir par dépendance, pas par projet, est le défaut pragmatique."
+          }
+        },
+        {
+          "type": "code",
+          "code": "import kotlinx.coroutines.test.runTest\nimport kotlinx.coroutines.test.advanceTimeBy\n\n@Test\nfun `emits a value after the debounce delay`() = runTest {\n    val results = mutableListOf<Int>()\n    val job = launch { source().debounce(300).toList(results) }\n    advanceTimeBy(301)\n    assertEquals(listOf(42), results)\n    job.cancel()\n}"
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "`runTest` (from `kotlinx-coroutines-test`) runs on virtual time: real `delay()` calls inside the tested code complete instantly unless you explicitly `advanceTimeBy`/`advanceUntilIdle`, so a test can assert on a 30-second debounce in milliseconds of wall-clock time. Forgetting to advance time is the most common reason such a test hangs or asserts on an empty result.",
+            "fr": "`runTest` (de `kotlinx-coroutines-test`) tourne en temps virtuel : les vrais `delay()` du code testé se terminent instantanément sauf `advanceTimeBy`/`advanceUntilIdle` explicite, un test peut donc affirmer sur un debounce de 30 secondes en quelques millisecondes de temps réel. Oublier d'avancer le temps est la raison la plus fréquente pour qu'un tel test reste bloqué ou affirme sur un résultat vide."
+          }
+        }
+      ]
+    }
+  ],
+  "flashcards": [
+    {
+      "id": "fc-package-directory",
+      "front": {
+        "en": "Does a Kotlin file's package declaration have to match its directory path?",
+        "fr": "La déclaration package d'un fichier Kotlin doit-elle correspondre à son chemin de dossier ?"
+      },
+      "back": {
+        "en": "No, unlike Java the compiler does not enforce it. Following the convention still helps IDE navigation and build tooling, but it's a convention, not a compile-time rule.",
+        "fr": "Non, contrairement à Java le compilateur ne le vérifie pas. Suivre la convention aide quand même la navigation IDE et l'outillage de build, mais c'est une convention, pas une règle de compilation."
+      }
+    },
+    {
+      "id": "fc-default-imports",
+      "front": {
+        "en": "Why does `listOf(1, 2, 3).filter { it > 1 }` need no import?",
+        "fr": "Pourquoi `listOf(1, 2, 3).filter { it > 1 }` ne nécessite-t-il aucun import ?"
+      },
+      "back": {
+        "en": "Kotlin auto-imports kotlin.*, kotlin.collections.*, kotlin.text.*, kotlin.ranges.*, kotlin.sequences.* and kotlin.io.* (plus platform defaults) in every file. Only symbols outside those packages need an explicit import.",
+        "fr": "Kotlin importe automatiquement kotlin.*, kotlin.collections.*, kotlin.text.*, kotlin.ranges.*, kotlin.sequences.* et kotlin.io.* (plus les défauts de plateforme) dans chaque fichier. Seuls les symboles hors de ces packages demandent un import explicite."
+      }
+    },
+    {
+      "id": "fc-private-top-level-vs-member",
+      "front": {
+        "en": "What does `private` mean on a top-level function versus on a class member?",
+        "fr": "Que signifie `private` sur une fonction top-level, contre sur un membre de classe ?"
+      },
+      "back": {
+        "en": "Top-level: visible only within that FILE, callable by any other declaration in the same file regardless of class. Class member: visible only inside that CLASS's own body. Same keyword, different scope depending on where it's applied.",
+        "fr": "Top-level : visible uniquement dans ce FICHIER, appelable par toute autre déclaration du même fichier quelle que soit la classe. Membre de classe : visible uniquement dans le corps de cette CLASSE. Même mot-clé, portée différente selon où il s'applique."
+      }
+    },
+    {
+      "id": "fc-internal-module",
+      "front": {
+        "en": "What counts as \"the same module\" for an `internal` declaration?",
+        "fr": "Qu'est-ce qui compte comme \"même module\" pour une déclaration `internal` ?"
+      },
+      "back": {
+        "en": "A set of Kotlin files compiled together as one unit — typically one Gradle source set or one IntelliJ/Maven module — regardless of package. Unlike Java's package-private, internal visibility does not depend on directory or package layout at all.",
+        "fr": "Un ensemble de fichiers Kotlin compilés ensemble comme une unité — typiquement un source set Gradle ou un module IntelliJ/Maven — quel que soit le package. Contrairement au package-private de Java, la visibilité internal ne dépend pas du tout de l'arborescence ou du package."
+      }
+    },
+    {
+      "id": "fc-protected-top-level",
+      "front": {
+        "en": "Can a top-level function be declared `protected`?",
+        "fr": "Une fonction top-level peut-elle être déclarée `protected` ?"
+      },
+      "back": {
+        "en": "No. protected only applies to class members: it means visible to the declaring class and its subclasses. At top level, where there is no class and no inheritance, protected has no meaning and is rejected by the compiler.",
+        "fr": "Non. protected ne s'applique qu'aux membres de classe : il signifie visible par la classe déclarante et ses sous-classes. Au niveau top-level, où il n'y a ni classe ni héritage, protected n'a pas de sens et est rejeté par le compilateur."
+      }
+    },
+    {
+      "id": "fc-private-constructor-factory",
+      "front": {
+        "en": "What does `class Temperature private constructor(val kelvin: Double)` force?",
+        "fr": "Que force `class Temperature private constructor(val kelvin: Double)` ?"
+      },
+      "back": {
+        "en": "Every instantiation must go through some other member with access to the constructor, typically named factory functions on a companion object. The class stays public and usable, only its raw construction path is closed off.",
+        "fr": "Chaque instanciation doit passer par un autre membre ayant accès au constructeur, typiquement des factories nommées sur un companion object. La classe reste publique et utilisable, seul son chemin de construction brut est fermé."
+      }
+    },
+    {
+      "id": "fc-inline-public-api",
+      "front": {
+        "en": "Why can't a public inline function reference an internal val in its body?",
+        "fr": "Pourquoi une fonction inline publique ne peut-elle pas référencer un val internal dans son corps ?"
+      },
+      "back": {
+        "en": "Inlining copies the function's bytecode into every call site, including callers outside the module. Referencing a non-public declaration there would leak its implementation across the module boundary, so the compiler rejects it unless the declaration is marked @PublishedApi internal.",
+        "fr": "L'inlining copie le bytecode de la fonction à chaque site d'appel, y compris des appelants hors du module. Y référencer une déclaration non-publique fuiterait son implémentation à travers la frontière du module, le compilateur le rejette donc sauf si la déclaration est marquée @PublishedApi internal."
+      }
+    },
+    {
+      "id": "fc-published-api",
+      "front": {
+        "en": "What does @PublishedApi do?",
+        "fr": "Que fait @PublishedApi ?"
+      },
+      "back": {
+        "en": "Marks an internal declaration as usable from public inline functions, while keeping it out of the module's public API surface and external autocomplete. A deliberate, narrow exception to the inline-visibility rule, not a way to make something fully public.",
+        "fr": "Marque une déclaration internal comme utilisable depuis des fonctions inline publiques, tout en la gardant hors de la surface d'API publique du module et de l'autocomplétion externe. Une exception délibérée et étroite à la règle de visibilité inline, pas un moyen de rendre quelque chose pleinement public."
+      }
+    },
+    {
+      "id": "fc-nested-privacy-direction",
+      "front": {
+        "en": "Can an outer class read a `private` member of a nested or inner class it declares?",
+        "fr": "Une classe englobante peut-elle lire un membre `private` d'une classe imbriquée ou interne qu'elle déclare ?"
+      },
+      "back": {
+        "en": "No. private scopes access to the declaring class's own body; nesting grants no automatic reach in either direction. The outer class needs the nested class to expose that member with wider visibility if it wants to read it.",
+        "fr": "Non. private restreint l'accès au corps de la classe déclarante ; l'imbrication n'accorde d'accès automatique dans aucun sens. La classe englobante a besoin que la classe imbriquée expose ce membre avec une visibilité plus large pour pouvoir le lire."
+      }
+    },
+    {
+      "id": "fc-explicit-api-mode",
+      "front": {
+        "en": "What does Gradle's explicitApi() mode enforce?",
+        "fr": "Que fait respecter le mode explicitApi() de Gradle ?"
+      },
+      "back": {
+        "en": "Every public declaration must state its visibility and return type explicitly; relying on the public default or on inferred return types becomes a compile error. Aimed at library authors, to prevent an accidentally-public API surface.",
+        "fr": "Chaque déclaration publique doit préciser explicitement sa visibilité et son type de retour ; compter sur le défaut public ou sur un type de retour inféré devient une erreur de compilation. Destiné aux auteurs de bibliothèques, pour éviter une surface d'API publique accidentelle."
+      }
+    },
+    {
+      "id": "fc-assertequals-order",
+      "front": {
+        "en": "In kotlin.test's assertEquals(a, b), which is expected and which is actual?",
+        "fr": "Dans assertEquals(a, b) de kotlin.test, lequel est expected et lequel est actual ?"
+      },
+      "back": {
+        "en": "a is expected, b is actual: assertEquals(expected, actual, message = null), matching JUnit5. Swap them and a failure message reports the diff backwards, a classic source of confusing test output.",
+        "fr": "a est expected, b est actual : assertEquals(expected, actual, message = null), comme JUnit5. Les inverser fait que le message d'échec rapporte le diff à l'envers, une source classique de sortie de test déroutante."
+      }
+    },
+    {
+      "id": "fc-assertfailswith-subtype",
+      "front": {
+        "en": "Does assertFailsWith<Exception> pass if the code throws a more specific subclass?",
+        "fr": "assertFailsWith<Exception> passe-t-il si le code lève une sous-classe plus précise ?"
+      },
+      "back": {
+        "en": "Yes, exactly like a catch clause: any thrown subtype of the specified type satisfies it. Assert on the most specific exception type the contract actually promises, or the test would silently accept the wrong failure mode.",
+        "fr": "Oui, exactement comme une clause catch : toute sous-classe levée du type spécifié la satisfait. Affirmez sur le type d'exception le plus précis que le contrat promet réellement, sinon le test accepterait silencieusement le mauvais mode d'échec."
+      }
+    },
+    {
+      "id": "fc-runtest-virtual-time",
+      "front": {
+        "en": "Why can a runTest block assert on a 30-second delay almost instantly?",
+        "fr": "Pourquoi un bloc runTest peut-il affirmer sur un delay de 30 secondes presque instantanément ?"
+      },
+      "back": {
+        "en": "runTest (kotlinx-coroutines-test) runs on virtual time: delay() completes instantly unless the test explicitly advances time with advanceTimeBy/advanceUntilIdle. Forgetting to advance time is the most common reason such a test hangs or sees an empty result.",
+        "fr": "runTest (kotlinx-coroutines-test) tourne en temps virtuel : delay() se termine instantanément sauf si le test avance explicitement le temps avec advanceTimeBy/advanceUntilIdle. Oublier d'avancer le temps est la raison la plus fréquente pour qu'un tel test reste bloqué ou voie un résultat vide."
+      }
+    }
+  ],
+  "exercises": [
+    {
+      "id": "ex-private-top-level-cross-file",
+      "kind": "find-bug",
+      "difficulty": 1,
+      "prompt": {
+        "en": "Both files declare `package billing`, yet this fails to compile. Why?",
+        "fr": "Les deux fichiers déclarent `package billing`, pourtant ça ne compile pas. Pourquoi ?"
+      },
+      "code": "// File: Pricing.kt\npackage billing\nprivate fun roundCents(x: Double): Long = Math.round(x)\n\n// File: Invoice.kt\npackage billing\nfun total(x: Double) = roundCents(x)   // error: unresolved reference",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "private on a top-level declaration scopes it to its own FILE, not its package: same package does not grant access across files",
+            "fr": "private sur une déclaration top-level la limite à son propre FICHIER, pas à son package : le même package ne donne pas accès entre fichiers"
+          }
+        },
+        { "id": "b", "label": { "en": "Two files cannot share the same package declaration", "fr": "Deux fichiers ne peuvent pas partager la même déclaration package" } },
+        { "id": "c", "label": { "en": "roundCents must be declared inside a class to be callable", "fr": "roundCents doit être déclarée dans une classe pour être appelable" } },
+        { "id": "d", "label": { "en": "Math.round requires an explicit import in Kotlin", "fr": "Math.round nécessite un import explicite en Kotlin" } }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "Kotlin's private on a top-level declaration is file-scoped, not package-scoped: unlike Java's package-private, sharing a package name across files grants no cross-file access. roundCents would need to be internal (module-wide) or public to be called from Invoice.kt.",
+        "fr": "Le private de Kotlin sur une déclaration top-level est limité au fichier, pas au package : contrairement au package-private de Java, partager un nom de package entre fichiers n'accorde aucun accès inter-fichiers. roundCents devrait être internal (tout le module) ou public pour être appelable depuis Invoice.kt."
+      }
+    },
+    {
+      "id": "ex-inline-public-api",
+      "kind": "find-bug",
+      "difficulty": 2,
+      "prompt": {
+        "en": "This library code fails to compile. What's the fix that keeps `cache` out of the public API?",
+        "fr": "Ce code de bibliothèque ne compile pas. Quel correctif garde `cache` hors de l'API publique ?"
+      },
+      "code": "internal val cache = mutableMapOf<String, Int>()\n\npublic inline fun cachedSize(): Int = cache.size\n// error: public-api inline function cannot access non-public-api 'cache'",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "Annotate cache with @PublishedApi: it stays internal (hidden from external code) but becomes usable from public inline functions",
+            "fr": "Annoter cache avec @PublishedApi : elle reste internal (cachée du code externe) mais devient utilisable depuis des fonctions inline publiques"
+          }
+        },
+        { "id": "b", "label": { "en": "Make cache public instead of internal", "fr": "Rendre cache public au lieu de internal" } },
+        { "id": "c", "label": { "en": "Remove the inline keyword from cachedSize entirely; there is no other fix", "fr": "Retirer entièrement le mot-clé inline de cachedSize ; il n'y a pas d'autre correctif" } },
+        { "id": "d", "label": { "en": "Move cache into a companion object", "fr": "Déplacer cache dans un companion object" } }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "@PublishedApi is the designed escape hatch for exactly this situation: it lets an internal declaration be referenced from public inline function bodies (since the inlined bytecode would otherwise leak it past the module boundary) without widening its visibility to public, so it stays absent from the library's public API and external autocomplete.",
+        "fr": "@PublishedApi est l'échappatoire conçue exactement pour cette situation : elle permet à une déclaration internal d'être référencée depuis des corps de fonctions inline publiques (le bytecode inliné la fuiterait sinon hors du module) sans élargir sa visibilité à public, elle reste donc absente de l'API publique de la bibliothèque et de l'autocomplétion externe."
+      }
+    },
+    {
+      "id": "ex-nested-privacy",
+      "kind": "predict-output",
+      "difficulty": 2,
+      "prompt": {
+        "en": "Does this compile, and if not, why?",
+        "fr": "Est-ce que ça compile, et sinon pourquoi ?"
+      },
+      "code": "class Outer {\n    inner class Inner {\n        private val secret = 42\n    }\n\n    fun peek(i: Inner): Int = i.secret\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "Does not compile: secret is private to Inner, and Outer has no special access to it despite declaring Inner",
+            "fr": "Ne compile pas : secret est private à Inner, et Outer n'a aucun accès particulier malgré la déclaration d'Inner"
+          }
+        },
+        { "id": "b", "label": { "en": "Compiles and prints 42: inner classes always expose their state to the outer class", "fr": "Compile et affiche 42 : les classes internes exposent toujours leur état à la classe englobante" } },
+        { "id": "c", "label": { "en": "Compiles, but secret is always 0 from Outer's perspective", "fr": "Compile, mais secret vaut toujours 0 du point de vue d'Outer" } },
+        { "id": "d", "label": { "en": "Does not compile because inner classes cannot have private members", "fr": "Ne compile pas car les classes internes ne peuvent pas avoir de membres private" } }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "inner grants Inner an implicit reference back to its Outer instance, but visibility still flows the usual way: private scopes secret to Inner's own body. Outer declaring Inner does not make Outer part of that body, so i.secret is unresolved from peek.",
+        "fr": "inner donne à Inner une référence implicite vers son instance Outer, mais la visibilité suit toujours les règles habituelles : private limite secret au corps propre d'Inner. Le fait qu'Outer déclare Inner ne fait pas d'Outer une partie de ce corps, i.secret est donc non résolu dans peek."
+      }
+    },
+    {
+      "id": "ex-assertequals-order-bug",
+      "kind": "find-bug",
+      "difficulty": 2,
+      "prompt": {
+        "en": "This test's failure message reads \"expected <4> but was <5>\" even though the code is correct and 4 is what the buggy computation actually returned. What's wrong with the test itself?",
+        "fr": "Le message d'échec de ce test affiche \"expected <4> but was <5>\" alors que le code est correct et que 4 est ce que le calcul buggé a réellement renvoyé. Qu'est-ce qui cloche dans le test lui-même ?"
+      },
+      "code": "@Test\nfun `adds two numbers`() {\n    val actual = add(2, 2)       // buggy add() returns 4 here, should return 5... wait\n    assertEquals(actual, 5)      // arguments swapped: (actual, expected) instead of (expected, actual)\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "assertEquals expects (expected, actual): the call passes actual first, so the failure message reports expected/actual reversed from what the reader assumes",
+            "fr": "assertEquals attend (expected, actual) : l'appel passe actual en premier, le message d'échec rapporte donc expected/actual inversés par rapport à ce que le lecteur suppose"
+          }
+        },
+        { "id": "b", "label": { "en": "assertEquals cannot compare two Int values", "fr": "assertEquals ne peut pas comparer deux valeurs Int" } },
+        { "id": "c", "label": { "en": "The test must call assertTrue(actual == 5) instead", "fr": "Le test doit appeler assertTrue(actual == 5) à la place" } },
+        { "id": "d", "label": { "en": "add() must be annotated @Test itself", "fr": "add() doit elle-même être annotée @Test" } }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "kotlin.test's assertEquals(expected, actual) puts expected first, matching JUnit5. Here the call reads assertEquals(actual, 5), silently treating the buggy value as \"expected\" and 5 as \"actual\" — the diff in the failure message is real but backwards, a frequent source of confused debugging.",
+        "fr": "assertEquals(expected, actual) de kotlin.test place expected en premier, comme JUnit5. Ici l'appel s'écrit assertEquals(actual, 5), traitant silencieusement la valeur buguée comme \"expected\" et 5 comme \"actual\" — le diff dans le message d'échec est réel mais inversé, une source fréquente de débogage confus."
+      }
+    },
+    {
+      "id": "ex-assertfailswith-subtype",
+      "kind": "mcq",
+      "difficulty": 2,
+      "prompt": {
+        "en": "`fun parse(s: String): Int = s.toInt()` throws NumberFormatException (a subclass of IllegalArgumentException) on bad input. Does `assertFailsWith<IllegalArgumentException> { parse(\"x\") }` pass?",
+        "fr": "`fun parse(s: String): Int = s.toInt()` lève NumberFormatException (sous-classe d'IllegalArgumentException) sur une entrée invalide. `assertFailsWith<IllegalArgumentException> { parse(\"x\") }` passe-t-il ?"
+      },
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "Yes: assertFailsWith matches any thrown subtype of the specified type, same as a catch clause",
+            "fr": "Oui : assertFailsWith accepte tout sous-type levé du type spécifié, comme une clause catch"
+          }
+        },
+        { "id": "b", "label": { "en": "No: the thrown type must match exactly, so this test fails", "fr": "Non : le type levé doit correspondre exactement, ce test échoue" } },
+        { "id": "c", "label": { "en": "No: assertFailsWith only works with custom exception classes", "fr": "Non : assertFailsWith ne fonctionne qu'avec des classes d'exceptions personnalisées" } },
+        { "id": "d", "label": { "en": "It throws a compile error: NumberFormatException must be the reified type", "fr": "Erreur de compilation : NumberFormatException doit être le type réifié" } }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "assertFailsWith<E> succeeds whenever the block throws E or any subtype of E, mirroring how catch (e: E) would match. That's convenient but means asserting on too broad a type (Exception, Throwable) can silently accept the wrong failure mode; prefer the most specific type the contract promises.",
+        "fr": "assertFailsWith<E> réussit dès que le bloc lève E ou tout sous-type de E, à l'image de ce que catch (e: E) capturerait. Pratique, mais cela signifie qu'affirmer sur un type trop large (Exception, Throwable) peut accepter silencieusement le mauvais mode d'échec ; préférez le type le plus précis promis par le contrat."
+      }
+    },
+    {
+      "id": "ex-runtest-forgot-advance",
+      "kind": "find-bug",
+      "difficulty": 3,
+      "prompt": {
+        "en": "This test times out instead of asserting. What's missing?",
+        "fr": "Ce test expire au lieu d'affirmer. Que manque-t-il ?"
+      },
+      "code": "@Test\nfun `emits after a 5 second delay`() = runTest {\n    var value: Int? = null\n    launch {\n        delay(5_000)\n        value = 42\n    }\n    assertEquals(42, value)   // fails immediately: value is still null\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "The test asserts before the virtual clock has advanced past the delay; call advanceTimeBy(5_000) (or advanceUntilIdle()) before the assertion",
+            "fr": "Le test affirme avant que l'horloge virtuelle n'ait avancé au-delà du delay ; appeler advanceTimeBy(5_000) (ou advanceUntilIdle()) avant l'assertion"
+          }
+        },
+        { "id": "b", "label": { "en": "delay() cannot be called inside launch, only at the top of runTest", "fr": "delay() ne peut pas être appelé dans launch, seulement au sommet de runTest" } },
+        { "id": "c", "label": { "en": "runTest requires assertEquals to be called inside the launch block itself", "fr": "runTest exige que assertEquals soit appelé dans le bloc launch lui-même" } },
+        { "id": "d", "label": { "en": "value must be declared with @Volatile to be visible after delay", "fr": "value doit être déclarée avec @Volatile pour être visible après delay" } }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "runTest runs on virtual time: the launched coroutine's delay(5_000) is scheduled but the assertion right after launch runs before that virtual time has passed. Advancing the test's virtual clock (advanceTimeBy or advanceUntilIdle) lets the delayed assignment actually happen before asserting on it.",
+        "fr": "runTest tourne en temps virtuel : le delay(5_000) de la coroutine lancée est planifié, mais l'assertion juste après launch s'exécute avant que ce temps virtuel se soit écoulé. Avancer l'horloge virtuelle du test (advanceTimeBy ou advanceUntilIdle) laisse l'affectation différée réellement se produire avant l'assertion."
+      }
+    }
+  ]
+}

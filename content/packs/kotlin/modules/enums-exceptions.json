@@ -1,0 +1,549 @@
+{
+  "id": "enums-exceptions",
+  "title": { "en": "Enums & exceptions", "fr": "Enums & exceptions" },
+  "tagline": {
+    "en": "Enum classes, throw/try/finally, custom exceptions, Nothing",
+    "fr": "Enum classes, throw/try/finally, exceptions custom, Nothing"
+  },
+  "icon": "🧯",
+  "lessons": [
+    {
+      "id": "enum-basics",
+      "title": {
+        "en": "Enum classes: constants, properties & entries",
+        "fr": "Enum classes : constantes, propriétés & entries"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "`enum class` declares a fixed set of named instances. Each constant can carry a constructor argument, exactly like a class: `enum class Color(val rgb: Int) { RED(0xFF0000), GREEN(0x00FF00), BLUE(0x0000FF) }`. Every entry automatically exposes `name` (the declared identifier as String) and `ordinal` (zero-based declaration order).",
+            "fr": "`enum class` déclare un ensemble fixe d'instances nommées. Chaque constante peut porter un argument de constructeur, exactement comme une classe : `enum class Color(val rgb: Int) { RED(0xFF0000), GREEN(0x00FF00), BLUE(0x0000FF) }`. Chaque entrée expose automatiquement `name` (l'identifiant déclaré, en String) et `ordinal` (l'ordre de déclaration, base zéro)."
+          }
+        },
+        {
+          "type": "code",
+          "code": "enum class Color(val rgb: Int) {\n    RED(0xFF0000), GREEN(0x00FF00), BLUE(0x0000FF);\n\n    fun toHex() = \"#%06X\".format(rgb)\n}\n\nval c = Color.GREEN\nprintln(\"${c.name} #${c.ordinal} ${c.toHex()}\")  // GREEN #1 #00FF00",
+          "caption": {
+            "en": "The semicolon after the last constant is required only when members follow.",
+            "fr": "Le point-virgule après la dernière constante n'est requis que si des membres suivent."
+          }
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "`Color.entries` (Kotlin 1.9+) returns an immutable, cached `List<Color>` in declaration order: prefer it over the older `Color.values()`, which allocates and copies a fresh array on every single call. `Color.valueOf(\"GREEN\")` looks a constant up by name and throws `IllegalArgumentException` if none matches.",
+            "fr": "`Color.entries` (Kotlin 1.9+) renvoie une `List<Color>` immuable et mise en cache, dans l'ordre de déclaration : préférez-la à l'ancien `Color.values()`, qui alloue et copie un nouveau tableau à CHAQUE appel. `Color.valueOf(\"GREEN\")` retrouve une constante par son nom et lève `IllegalArgumentException` si aucune ne correspond."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "`values()` looks harmless in a hot loop (`for (c in Color.values())`) but reallocates the backing array every iteration of an outer loop that calls it; `entries` is the same list every time, no allocation. Static analyzers (and the compiler in recent versions) flag `values()` for exactly this reason.",
+            "fr": "`values()` paraît anodin dans une boucle chaude (`for (c in Color.values())`) mais réalloue le tableau sous-jacent à chaque itération d'une boucle externe qui l'appelle ; `entries` renvoie toujours la même liste, sans allocation. Les analyseurs statiques (et le compilateur dans les versions récentes) signalent `values()` pour cette raison précise."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "`when` over an enum is exhaustive without `else`, just like sealed types, so adding a constant surfaces every place that must handle it as a compile error — as long as the `when` is consumed as an expression (see the sealed-hierarchies lesson for the statement-vs-expression trap).",
+            "fr": "`when` sur un enum est exhaustif sans `else`, comme les types sealed : ajouter une constante fait remonter chaque endroit à traiter en erreur de compilation — à condition que le `when` soit consommé comme expression (voir la leçon sur les hiérarchies sealed pour le piège statement vs expression)."
+          }
+        }
+      ]
+    },
+    {
+      "id": "enum-behavior",
+      "title": {
+        "en": "Per-constant bodies & interfaces",
+        "fr": "Corps par constante & interfaces"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "An enum constant can open its own body to override an `abstract` member declared in the enum class: each constant then supplies its own implementation, no `when` required at the call site. This is the classic alternative to a `when (op) { ... }` dispatch scattered across the codebase.",
+            "fr": "Une constante d'enum peut ouvrir son propre corps pour surcharger un membre `abstract` déclaré dans l'enum class : chaque constante fournit alors sa propre implémentation, sans `when` au site d'appel. C'est l'alternative classique à un dispatch `when (op) { ... }` dispersé dans le code."
+          }
+        },
+        {
+          "type": "code",
+          "code": "enum class Operation {\n    PLUS {\n        override fun apply(a: Int, b: Int) = a + b\n    },\n    TIMES {\n        override fun apply(a: Int, b: Int) = a * b\n    };\n\n    abstract fun apply(a: Int, b: Int): Int\n}\n\nprintln(Operation.PLUS.apply(2, 3))  // 5"
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "An enum class can implement one or more interfaces; every constant automatically conforms. Combined with properties, this turns a lookup table into typed, exhaustive data: `enum class HttpStatus(val code: Int) : Describable { OK(200) { override val summary = \"success\" }, ... }`.",
+            "fr": "Une enum class peut implémenter une ou plusieurs interfaces ; chaque constante s'y conforme automatiquement. Combiné aux propriétés, cela transforme une table de correspondance en données typées et exhaustives : `enum class HttpStatus(val code: Int) : Describable { OK(200) { override val summary = \"success\" }, ... }`."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "An enum class implicitly extends `Enum<T>`: it cannot extend any other class, and it cannot be `open` — constants are the only subtypes there will ever be. Reach for a sealed hierarchy instead when constants need to carry genuinely different shapes of data, not just different behavior over the same properties.",
+            "fr": "Une enum class étend implicitement `Enum<T>` : elle ne peut étendre aucune autre classe, et ne peut pas être `open` — les constantes sont les seuls sous-types qui existeront jamais. Préférez une hiérarchie sealed quand les constantes doivent porter des formes de données réellement différentes, pas seulement un comportement différent sur les mêmes propriétés."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "`entries` being a `List` means every stdlib collection operator applies for free: `Operation.entries.first { it.apply(1, 1) == 2 }`, or building a `Map<String, Operation>` keyed by a custom label without a manual loop.",
+            "fr": "`entries` étant une `List`, tous les opérateurs de collections du stdlib s'appliquent gratuitement : `Operation.entries.first { it.apply(1, 1) == 2 }`, ou construire une `Map<String, Operation>` indexée par un libellé personnalisé sans boucle manuelle."
+          }
+        }
+      ]
+    },
+    {
+      "id": "try-catch-finally",
+      "title": {
+        "en": "throw, try/catch/finally as expressions",
+        "fr": "throw, try/catch/finally comme expressions"
+      },
+      "minutes": 5,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "Kotlin has no checked exceptions: every `Throwable` is unchecked, nothing forces a caller to catch or declare it (there is no `throws` clause). `try` is an expression, so it can be assigned directly: `val n = try { s.toInt() } catch (e: NumberFormatException) { 0 }`. The value is whichever branch actually ran; `finally` never contributes to the result.",
+            "fr": "Kotlin n'a pas d'exceptions checked : tout `Throwable` est unchecked, rien n'oblige un appelant à l'attraper ou le déclarer (pas de clause `throws`). `try` est une expression, donc directement affectable : `val n = try { s.toInt() } catch (e: NumberFormatException) { 0 }`. La valeur est celle de la branche réellement exécutée ; `finally` ne contribue jamais au résultat."
+          }
+        },
+        {
+          "type": "code",
+          "code": "fun parsePort(raw: String): Int = try {\n    raw.trim().toInt()\n} catch (e: NumberFormatException) {\n    DEFAULT_PORT\n} finally {\n    logger.debug(\"parse attempt: $raw\")\n}"
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "Catch clauses are tried top to bottom, first match wins by dynamic type: order from most specific to most general, or the specific catch becomes unreachable. `finally` always runs — on normal completion, on any exception, and even when `try` or `catch` executes a `return`.",
+            "fr": "Les blocs catch sont essayés de haut en bas, le premier qui correspond par type dynamique l'emporte : ordonnez du plus spécifique au plus général, sinon le catch spécifique devient inatteignable. `finally` s'exécute toujours — en fin normale, sur exception, et même quand `try` ou `catch` exécute un `return`."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "A `return` (or `throw`) inside `finally` silently discards whatever the `try`/`catch` was about to return or throw — including an in-flight exception. `fun f(): Int { try { return 1 } finally { return 2 } }` returns 2, and any exception thrown inside `try` before reaching that `finally` return would vanish without a trace. Never put `return` in `finally`.",
+            "fr": "Un `return` (ou `throw`) dans `finally` écrase silencieusement ce que `try`/`catch` s'apprêtait à renvoyer ou lever — y compris une exception en cours de propagation. `fun f(): Int { try { return 1 } finally { return 2 } }` renvoie 2, et toute exception levée dans `try` avant d'atteindre ce return de `finally` disparaîtrait sans trace. Ne mettez jamais de `return` dans `finally`."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Kotlin has no multi-catch syntax (Java's `catch (IOException | SQLException e)` has no equivalent). Catch a common supertype, or catch `Exception` and dispatch with `when (e) { is IOException -> ...; is SQLException -> ...; else -> throw e }` — rethrowing on the `else` keeps unrelated exceptions propagating.",
+            "fr": "Kotlin n'a pas de syntaxe multi-catch (le `catch (IOException | SQLException e)` de Java n'a pas d'équivalent). Attrapez un supertype commun, ou attrapez `Exception` et dispatchez avec `when (e) { is IOException -> ...; is SQLException -> ...; else -> throw e }` — relancer sur le `else` laisse les exceptions non liées se propager."
+          }
+        }
+      ]
+    },
+    {
+      "id": "custom-exceptions-nothing",
+      "title": {
+        "en": "Custom exceptions & the Nothing type",
+        "fr": "Exceptions personnalisées & le type Nothing"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "A custom exception is a class extending `Exception` (or a more specific standard subtype): `class InsufficientFundsException(val missing: Long) : Exception(\"missing $missing\")`. Chain a root cause through the `cause` parameter, shared by every `Throwable` constructor overload, so `printStackTrace()` shows the full chain instead of losing the original error.",
+            "fr": "Une exception personnalisée est une classe étendant `Exception` (ou un sous-type standard plus précis) : `class InsufficientFundsException(val missing: Long) : Exception(\"missing $missing\")`. Chaînez une cause racine via le paramètre `cause`, partagé par tous les constructeurs de `Throwable`, pour que `printStackTrace()` affiche la chaîne complète au lieu de perdre l'erreur d'origine."
+          }
+        },
+        {
+          "type": "code",
+          "code": "class InsufficientFundsException(\n    val missing: Long,\n    cause: Throwable? = null\n) : Exception(\"missing $missing cents\", cause)\n\nfun withdraw(balance: Long, amount: Long): Long =\n    if (amount > balance) throw InsufficientFundsException(amount - balance)\n    else balance - amount"
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "`Nothing` is the type of an expression that never completes normally: `throw` is itself typed `Nothing`, and so is a function that always throws, like `fun fail(msg: String): Nothing = throw IllegalStateException(msg)`. Because `Nothing` is a subtype of every type, `fail(...)` type-checks anywhere a value is expected, including both sides of `if` and after `?:`.",
+            "fr": "`Nothing` est le type d'une expression qui ne se termine jamais normalement : `throw` est lui-même typé `Nothing`, tout comme une fonction qui lève toujours, telle que `fun fail(msg: String): Nothing = throw IllegalStateException(msg)`. `Nothing` étant sous-type de tout type, `fail(...)` type-check partout où une valeur est attendue, y compris des deux côtés d'un `if` et après `?:`."
+          }
+        },
+        {
+          "type": "code",
+          "code": "fun findUser(id: Long): User =\n    repository.find(id) ?: fail(\"no user with id $id\")\n// fail(...) has type Nothing, a subtype of User: the elvis still type-checks as User",
+          "caption": {
+            "en": "TODO() from the stdlib is the same trick: a Nothing-returning placeholder.",
+            "fr": "TODO() du stdlib est la même astuce : un placeholder qui renvoie Nothing."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "A function declared to return `Nothing` that sometimes falls through without throwing is a compiler-invisible bug: the compiler trusts the declared return type and does not verify every path actually throws. Keep `Nothing`-returning functions to a single unconditional `throw` (or a call to another `Nothing` function).",
+            "fr": "Une fonction déclarée `Nothing` qui parfois se termine sans lever est un bug invisible pour le compilateur : celui-ci fait confiance au type déclaré et ne vérifie pas que chaque chemin lève réellement. Limitez les fonctions renvoyant `Nothing` à un unique `throw` inconditionnel (ou un appel à une autre fonction `Nothing`)."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "Prefer standard subtypes (`IllegalArgumentException`, `IllegalStateException`, `NoSuchElementException`) over a fresh `Exception` subclass when no extra data needs carrying: `require`, `check` and `error` already throw the first two idiomatically, with a lazy message.",
+            "fr": "Préférez les sous-types standards (`IllegalArgumentException`, `IllegalStateException`, `NoSuchElementException`) à une nouvelle sous-classe d'`Exception` quand aucune donnée supplémentaire n'est à porter : `require`, `check` et `error` lèvent déjà les deux premières de façon idiomatique, avec un message paresseux."
+          }
+        }
+      ]
+    },
+    {
+      "id": "resource-safety",
+      "title": {
+        "en": "Resource safety: use{} & suppressed exceptions",
+        "fr": "Sécurité des ressources : use{} & exceptions suppressed"
+      },
+      "minutes": 4,
+      "blocks": [
+        {
+          "type": "text",
+          "body": {
+            "en": "Kotlin's answer to Java's try-with-resources is the `use` extension function on `Closeable`/`AutoCloseable`: `file.inputStream().use { stream -> stream.readBytes() }` guarantees `close()` runs even if the block throws, and returns the block's result like `run`.",
+            "fr": "La réponse de Kotlin au try-with-resources de Java est la fonction d'extension `use` sur `Closeable`/`AutoCloseable` : `file.inputStream().use { stream -> stream.readBytes() }` garantit que `close()` s'exécute même si le bloc lève, et renvoie le résultat du bloc comme `run`."
+          }
+        },
+        {
+          "type": "code",
+          "code": "fun readFirstLine(path: Path): String =\n    Files.newBufferedReader(path).use { reader ->\n        reader.readLine() ?: error(\"empty file\")\n    }\n// close() runs whether readLine()/error() throws or not"
+        },
+        {
+          "type": "text",
+          "body": {
+            "en": "If both the block and `close()` throw, `use` does not lose either: it rethrows the block's exception and attaches the close failure via `addSuppressed`, visible on the propagated exception's `suppressedExceptions`. Nesting several `use` calls closes resources in reverse acquisition order, exactly like nested try-with-resources.",
+            "fr": "Si le bloc et `close()` lèvent tous les deux, `use` ne perd aucun des deux : il relance l'exception du bloc et attache l'échec de fermeture via `addSuppressed`, visible dans `suppressedExceptions` de l'exception propagée. Imbriquer plusieurs `use` ferme les ressources dans l'ordre inverse d'acquisition, exactement comme des try-with-resources imbriqués."
+          }
+        },
+        {
+          "type": "gotcha",
+          "body": {
+            "en": "`use` closes exactly once and only the receiver: wrapping an already-`use`d stream in a second `use`, or manually calling `close()` inside the block, risks a double-close. Some resources tolerate it silently, others (many `Socket` or JDBC implementations) throw on the second call.",
+            "fr": "`use` ferme exactement une fois et uniquement le récepteur : envelopper un flux déjà passé par `use` dans un second `use`, ou appeler `close()` manuellement dans le bloc, risque une double fermeture. Certaines ressources la tolèrent silencieusement, d'autres (beaucoup de `Socket` ou d'implémentations JDBC) lèvent à ce second appel."
+          }
+        },
+        {
+          "type": "tip",
+          "body": {
+            "en": "`use` composes with the rest of the expression style: `return connect().use { it.query(sql) }` reads as one line and cannot leak the connection on any exit path, success or failure.",
+            "fr": "`use` se compose avec le reste du style expression : `return connect().use { it.query(sql) }` se lit en une ligne et ne peut fuir la connexion sur aucun chemin de sortie, succès ou échec."
+          }
+        }
+      ]
+    }
+  ],
+  "flashcards": [
+    {
+      "id": "fc-enum-entries-vs-values",
+      "front": {
+        "en": "Why prefer `entries` over `values()` on an enum?",
+        "fr": "Pourquoi préférer `entries` à `values()` sur un enum ?"
+      },
+      "back": {
+        "en": "entries (Kotlin 1.9+) is a cached, immutable List built once. values() allocates and copies a new array on every call, a real cost inside loops. Same content, entries is the free version.",
+        "fr": "entries (Kotlin 1.9+) est une List immuable mise en cache, construite une fois. values() alloue et copie un nouveau tableau à chaque appel, un vrai coût dans les boucles. Même contenu, entries est la version gratuite."
+      }
+    },
+    {
+      "id": "fc-enum-name-ordinal",
+      "front": {
+        "en": "What do `name` and `ordinal` give you on every enum constant, for free?",
+        "fr": "Que donnent `name` et `ordinal` sur chaque constante d'enum, gratuitement ?"
+      },
+      "back": {
+        "en": "name: the declared identifier as a String (\"GREEN\"). ordinal: its zero-based position in declaration order. Both are inherited from Enum<T>, no need to declare them.",
+        "fr": "name : l'identifiant déclaré en String (\"GREEN\"). ordinal : sa position, base zéro, dans l'ordre de déclaration. Les deux sont hérités de Enum<T>, aucune déclaration nécessaire."
+      }
+    },
+    {
+      "id": "fc-enum-abstract-member",
+      "front": {
+        "en": "How do you give each enum constant its own implementation of a method?",
+        "fr": "Comment donner à chaque constante d'enum sa propre implémentation d'une méthode ?"
+      },
+      "back": {
+        "en": "Declare the method abstract in the enum class, then override it in each constant's own body: PLUS { override fun apply(...) = ... }. No when-dispatch needed at call sites; new constants are forced to supply an implementation.",
+        "fr": "Déclarez la méthode abstract dans l'enum class, puis surchargez-la dans le corps propre de chaque constante : PLUS { override fun apply(...) = ... }. Aucun dispatch when nécessaire aux sites d'appel ; toute nouvelle constante est forcée de fournir une implémentation."
+      }
+    },
+    {
+      "id": "fc-enum-vs-sealed-recap",
+      "front": {
+        "en": "Why can't an enum class model states with different shapes of data?",
+        "fr": "Pourquoi une enum class ne peut-elle pas modéliser des états aux formes de données différentes ?"
+      },
+      "back": {
+        "en": "Every enum constant is an instance of the SAME class, sharing the same properties. Different data shapes per case need different types, which is exactly what a sealed hierarchy provides. Enum: fixed instances, one shape. Sealed: fixed types, own data each.",
+        "fr": "Chaque constante d'enum est une instance de LA MÊME classe, partageant les mêmes propriétés. Des formes de données différentes par cas demandent des types différents, ce qu'offre justement une hiérarchie sealed. Enum : instances fixes, une seule forme. Sealed : types fixes, données propres à chacun."
+      }
+    },
+    {
+      "id": "fc-no-checked-exceptions",
+      "front": {
+        "en": "How does Kotlin's exception model differ from Java's regarding checked exceptions?",
+        "fr": "En quoi le modèle d'exceptions de Kotlin diffère-t-il de celui de Java sur les exceptions checked ?"
+      },
+      "back": {
+        "en": "Kotlin has no checked exceptions and no throws clause: every exception is unchecked, callers are never forced by the compiler to catch or declare it. @Throws exists only to help Java callers, it has no effect on Kotlin call sites.",
+        "fr": "Kotlin n'a pas d'exceptions checked ni de clause throws : toute exception est unchecked, les appelants ne sont jamais forcés par le compilateur de l'attraper ou de la déclarer. @Throws n'existe que pour aider les appelants Java, sans effet sur les sites d'appel Kotlin."
+      }
+    },
+    {
+      "id": "fc-try-expression",
+      "front": {
+        "en": "What value does `val x = try { a() } catch (e: E) { b() }` hold?",
+        "fr": "Quelle valeur prend `val x = try { a() } catch (e: E) { b() }` ?"
+      },
+      "back": {
+        "en": "Whichever branch actually ran: a()'s result if no exception, b()'s result if E was caught. try/catch is an expression in Kotlin; finally never contributes to that value even if present.",
+        "fr": "Celle de la branche réellement exécutée : le résultat de a() sans exception, celui de b() si E a été attrapée. try/catch est une expression en Kotlin ; finally ne contribue jamais à cette valeur, même s'il est présent."
+      }
+    },
+    {
+      "id": "fc-finally-return-trap",
+      "front": {
+        "en": "What happens when both try and finally contain a return?",
+        "fr": "Que se passe-t-il quand try ET finally contiennent tous deux un return ?"
+      },
+      "back": {
+        "en": "finally's return silently wins and discards the try/catch's return value, or even an in-flight exception that was propagating. Never put return (or throw) inside finally.",
+        "fr": "Le return de finally l'emporte silencieusement et écrase la valeur de retour de try/catch, voire une exception en cours de propagation. Ne mettez jamais de return (ou throw) dans finally."
+      }
+    },
+    {
+      "id": "fc-no-multicatch",
+      "front": {
+        "en": "Kotlin has no `catch (A | B e)` multi-catch. What's the idiomatic replacement?",
+        "fr": "Kotlin n'a pas de multi-catch `catch (A | B e)`. Quel est le remplacement idiomatique ?"
+      },
+      "back": {
+        "en": "Catch a common supertype (often Exception) and dispatch inside with when (e) { is A -> ...; is B -> ...; else -> throw e }, rethrowing on else so unrelated exceptions keep propagating.",
+        "fr": "Attraper un supertype commun (souvent Exception) et dispatcher à l'intérieur avec when (e) { is A -> ...; is B -> ...; else -> throw e }, en relançant sur else pour laisser les exceptions non liées se propager."
+      }
+    },
+    {
+      "id": "fc-nothing-type",
+      "front": {
+        "en": "Why does `val u = repo.find(id) ?: fail(\"missing\")` type-check as the non-null type?",
+        "fr": "Pourquoi `val u = repo.find(id) ?: fail(\"missing\")` type-check comme le type non-nul ?"
+      },
+      "back": {
+        "en": "fail(...) is declared to return Nothing, and Nothing is a subtype of every type. The elvis expression's overall type becomes the non-nullable branch's type, with the Nothing branch contributing nothing but control-flow.",
+        "fr": "fail(...) est déclarée pour renvoyer Nothing, et Nothing est sous-type de tout type. Le type global de l'expression elvis devient celui de la branche non-nullable, la branche Nothing ne contribuant que du contrôle de flux."
+      }
+    },
+    {
+      "id": "fc-nothing-unsound",
+      "front": {
+        "en": "Why is a function declared `: Nothing` still a place a bug can hide?",
+        "fr": "Pourquoi une fonction déclarée `: Nothing` peut-elle quand même cacher un bug ?"
+      },
+      "back": {
+        "en": "The compiler trusts the declared return type without verifying every path actually throws; a Nothing function with a path that falls through silently breaks the guarantee callers rely on (e.g. after an elvis). Keep such functions to one unconditional throw.",
+        "fr": "Le compilateur fait confiance au type déclaré sans vérifier que chaque chemin lève réellement ; une fonction Nothing avec un chemin qui se termine sans lever brise silencieusement la garantie sur laquelle les appelants comptent (par ex. après un elvis). Limitez ces fonctions à un throw inconditionnel."
+      }
+    },
+    {
+      "id": "fc-use-function",
+      "front": {
+        "en": "What does `resource.use { ... }` guarantee, and what does it return?",
+        "fr": "Que garantit `resource.use { ... }`, et que renvoie-t-il ?"
+      },
+      "back": {
+        "en": "close() runs whether the block completes normally or throws (Kotlin's try-with-resources equivalent), and the call returns the block's result. If both the block and close() throw, the close failure is attached via addSuppressed rather than replacing the original exception.",
+        "fr": "close() s'exécute que le bloc se termine normalement ou lève (l'équivalent Kotlin du try-with-resources), et l'appel renvoie le résultat du bloc. Si le bloc et close() lèvent tous les deux, l'échec de fermeture est attaché via addSuppressed au lieu de remplacer l'exception d'origine."
+      }
+    },
+    {
+      "id": "fc-double-close",
+      "front": {
+        "en": "What risk appears when a resource is closed both by `use` and manually inside its own block?",
+        "fr": "Quel risque apparaît quand une ressource est fermée à la fois par `use` et manuellement dans son propre bloc ?"
+      },
+      "back": {
+        "en": "A double close: some resources tolerate a second close() silently, others (many sockets, JDBC connections) throw on it. Let use own the single close call; do not call close() yourself inside the block.",
+        "fr": "Une double fermeture : certaines ressources tolèrent silencieusement un second close(), d'autres (beaucoup de sockets, connexions JDBC) lèvent à cet appel. Laissez use posséder l'unique appel de fermeture ; n'appelez pas close() vous-même dans le bloc."
+      }
+    }
+  ],
+  "exercises": [
+    {
+      "id": "ex-entries-vs-values-cost",
+      "kind": "mcq",
+      "difficulty": 1,
+      "prompt": {
+        "en": "A hot loop iterates `Direction.values()` a million times. What's the idiomatic fix and why?",
+        "fr": "Une boucle chaude itère `Direction.values()` un million de fois. Quel est le correctif idiomatique, et pourquoi ?"
+      },
+      "choices": [
+        { "id": "a", "label": { "en": "Switch to Direction.entries: same content, no per-call array allocation", "fr": "Passer à Direction.entries : même contenu, aucune allocation de tableau par appel" } },
+        { "id": "b", "label": { "en": "Cache values() in a var and mutate it in place", "fr": "Mettre values() en cache dans un var et le muter en place" } },
+        { "id": "c", "label": { "en": "Switch to a when expression instead of iterating", "fr": "Passer à une expression when au lieu d'itérer" } },
+        { "id": "d", "label": { "en": "There is no difference, both are equally cheap", "fr": "Aucune différence, les deux sont aussi peu coûteux" } }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "values() allocates and copies a new array on every call; in a hot loop that's a million wasted allocations. entries is a cached, immutable List computed once, an equivalent-content, zero-allocation replacement.",
+        "fr": "values() alloue et copie un nouveau tableau à chaque appel ; dans une boucle chaude, ce sont un million d'allocations gaspillées. entries est une List immuable calculée une fois et mise en cache, un remplacement à contenu équivalent, sans allocation."
+      }
+    },
+    {
+      "id": "ex-enum-abstract",
+      "kind": "predict-output",
+      "difficulty": 2,
+      "prompt": {
+        "en": "What does this program print?",
+        "fr": "Qu'affiche ce programme ?"
+      },
+      "code": "enum class Sign {\n    POSITIVE { override fun apply(n: Int) = n },\n    NEGATIVE { override fun apply(n: Int) = -n };\n    abstract fun apply(n: Int): Int\n}\n\nfun main() {\n    val results = Sign.entries.map { it.apply(5) }\n    println(results)\n}",
+      "choices": [
+        { "id": "a", "label": { "en": "[5, -5]", "fr": "[5, -5]" } },
+        { "id": "b", "label": { "en": "[5, 5]", "fr": "[5, 5]" } },
+        { "id": "c", "label": { "en": "It does not compile: entries has no map", "fr": "Ne compile pas : entries n'a pas de map" } },
+        { "id": "d", "label": { "en": "[POSITIVE, NEGATIVE]", "fr": "[POSITIVE, NEGATIVE]" } }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "entries is a List<Sign> in declaration order, so every stdlib operator like map applies directly. Each constant runs its own override of apply: POSITIVE.apply(5) = 5, NEGATIVE.apply(5) = -5.",
+        "fr": "entries est une List<Sign> dans l'ordre de déclaration, tous les opérateurs du stdlib comme map s'appliquent donc directement. Chaque constante exécute son propre override d'apply : POSITIVE.apply(5) = 5, NEGATIVE.apply(5) = -5."
+      }
+    },
+    {
+      "id": "ex-finally-return",
+      "kind": "predict-output",
+      "difficulty": 3,
+      "prompt": {
+        "en": "What does this function return?",
+        "fr": "Que renvoie cette fonction ?"
+      },
+      "code": "fun compute(): Int {\n    try {\n        return 1\n    } finally {\n        return 2\n    }\n}\n\nfun main() {\n    println(compute())\n}",
+      "choices": [
+        { "id": "a", "label": { "en": "2", "fr": "2" } },
+        { "id": "b", "label": { "en": "1", "fr": "1" } },
+        { "id": "c", "label": { "en": "It does not compile: two returns in one function", "fr": "Ne compile pas : deux return dans une fonction" } },
+        { "id": "d", "label": { "en": "Throws IllegalStateException at runtime", "fr": "Lève IllegalStateException à l'exécution" } }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "finally always runs, and a return inside finally overrides whatever try was about to return: the function returns 2. This holds even if try had thrown instead of returning; the finally return would silently swallow the exception too.",
+        "fr": "finally s'exécute toujours, et un return dans finally écrase ce que try s'apprêtait à renvoyer : la fonction renvoie 2. Cela vaut même si try avait levé une exception au lieu de renvoyer ; le return de finally l'aurait aussi avalée silencieusement."
+      }
+    },
+    {
+      "id": "ex-no-multicatch",
+      "kind": "find-bug",
+      "difficulty": 2,
+      "prompt": {
+        "en": "A teammate ported this from Java and it fails to compile. What's wrong, and what's the idiomatic Kotlin fix?",
+        "fr": "Un collègue a porté ceci depuis Java et ça ne compile pas. Quel est le problème, et le correctif Kotlin idiomatique ?"
+      },
+      "code": "try {\n    risky()\n} catch (e: IOException | SQLException) {   // does not compile\n    log(e)\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "Kotlin has no multi-catch syntax; catch a common supertype, or catch Exception and dispatch with when (e) { is IOException, is SQLException -> log(e); else -> throw e }",
+            "fr": "Kotlin n'a pas de syntaxe multi-catch ; attraper un supertype commun, ou attraper Exception et dispatcher avec when (e) { is IOException, is SQLException -> log(e); else -> throw e }"
+          }
+        },
+        {
+          "id": "b",
+          "label": { "en": "catch blocks in Kotlin cannot call functions like log()", "fr": "les blocs catch en Kotlin ne peuvent pas appeler de fonctions comme log()" }
+        },
+        {
+          "id": "c",
+          "label": { "en": "IOException and SQLException must be imported with a single import statement", "fr": "IOException et SQLException doivent être importées avec une seule instruction import" }
+        },
+        {
+          "id": "d",
+          "label": { "en": "Kotlin requires a finally block whenever there is a catch", "fr": "Kotlin exige un bloc finally dès qu'il y a un catch" }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "Java's pipe-separated multi-catch has no Kotlin equivalent. The idiomatic fix catches a shared supertype (or Exception) and dispatches on the runtime type inside, rethrowing anything unexpected via the else branch so unrelated exceptions still propagate.",
+        "fr": "Le multi-catch séparé par des pipes de Java n'a pas d'équivalent Kotlin. Le correctif idiomatique attrape un supertype commun (ou Exception) et dispatche sur le type d'exécution à l'intérieur, en relançant tout cas inattendu via le else pour laisser les exceptions non liées se propager."
+      }
+    },
+    {
+      "id": "ex-nothing-elvis",
+      "kind": "predict-output",
+      "difficulty": 2,
+      "prompt": {
+        "en": "What does this program print?",
+        "fr": "Qu'affiche ce programme ?"
+      },
+      "code": "fun fail(msg: String): Nothing = throw IllegalStateException(msg)\n\nfun greet(name: String?): String {\n    val n = name ?: fail(\"name is required\")\n    return \"Hello, $n\"\n}\n\nfun main() {\n    println(greet(\"Sany\"))\n    println(greet(null))\n}",
+      "choices": [
+        { "id": "a", "label": { "en": "Hello, Sany then throws IllegalStateException", "fr": "Hello, Sany puis lève IllegalStateException" } },
+        { "id": "b", "label": { "en": "Hello, Sany then Hello, null", "fr": "Hello, Sany puis Hello, null" } },
+        { "id": "c", "label": { "en": "It does not compile: n could be Nothing", "fr": "Ne compile pas : n pourrait être Nothing" } },
+        { "id": "d", "label": { "en": "Hello, Sany then an empty line", "fr": "Hello, Sany puis une ligne vide" } }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "greet(\"Sany\") prints normally. greet(null) evaluates fail(...), whose Nothing return type lets the elvis type-check as String while control never actually produces a value: it throws, unwinding out of greet and main. Nothing propagating is exactly the point, not a defect.",
+        "fr": "greet(\"Sany\") s'affiche normalement. greet(null) évalue fail(...), dont le type Nothing permet à l'elvis de type-checker en String alors qu'aucune valeur n'est réellement produite : ça lève, remontant hors de greet et main. La propagation de Nothing est exactement le but recherché, pas un défaut."
+      }
+    },
+    {
+      "id": "ex-use-suppressed",
+      "kind": "mcq",
+      "difficulty": 3,
+      "prompt": {
+        "en": "Inside `resource.use { block() }`, both block() and the resource's close() throw. What happens to the two exceptions?",
+        "fr": "Dans `resource.use { block() }`, block() ET close() de la ressource lèvent toutes les deux. Que deviennent les deux exceptions ?"
+      },
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "block()'s exception propagates; close()'s exception is attached to it via addSuppressed, visible in suppressedExceptions",
+            "fr": "l'exception de block() se propage ; celle de close() lui est attachée via addSuppressed, visible dans suppressedExceptions"
+          }
+        },
+        {
+          "id": "b",
+          "label": { "en": "close()'s exception silently replaces block()'s, which is lost", "fr": "l'exception de close() remplace silencieusement celle de block(), qui est perdue" } },
+        {
+          "id": "c",
+          "label": { "en": "Both exceptions are thrown simultaneously, crashing the JVM", "fr": "les deux exceptions sont levées simultanément, plantant la JVM" }
+        },
+        {
+          "id": "d",
+          "label": { "en": "Only close()'s exception is visible; block()'s is swallowed without a trace", "fr": "seule l'exception de close() est visible ; celle de block() est avalée sans trace" }
+        }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "use mirrors Java's try-with-resources suppression model: the block's exception is the one that propagates, and the close failure is preserved as a suppressed exception rather than silently dropped or overwriting the original.",
+        "fr": "use reproduit le modèle de suppression du try-with-resources Java : l'exception du bloc est celle qui se propage, et l'échec de close() est préservé comme exception suppressed au lieu d'être silencieusement perdu ou d'écraser l'originale."
+      }
+    },
+    {
+      "id": "ex-nothing-unsound-bug",
+      "kind": "find-bug",
+      "difficulty": 3,
+      "prompt": {
+        "en": "This helper occasionally lets execution continue past where a crash was expected. Where's the bug?",
+        "fr": "Cet helper laisse parfois l'exécution continuer là où un crash était attendu. Où est le bug ?"
+      },
+      "code": "fun requireAdmin(user: User): Nothing {\n    if (!user.isAdmin) {\n        throw SecurityException(\"not an admin\")\n    }\n    // forgot an else branch: falls through here when user IS admin\n}\n\nfun deleteAll(user: User) {\n    if (!user.isAdmin) requireAdmin(user)\n    repository.deleteAll()\n}",
+      "choices": [
+        {
+          "id": "a",
+          "label": {
+            "en": "requireAdmin is declared Nothing but has a path (user is admin) that falls through without throwing; the compiler doesn't verify this, so the guarantee is broken by construction",
+            "fr": "requireAdmin est déclarée Nothing mais a un chemin (user est admin) qui se termine sans lever ; le compilateur ne le vérifie pas, la garantie est donc rompue dès la construction"
+          }
+        },
+        { "id": "b", "label": { "en": "Nothing-returning functions cannot take parameters", "fr": "les fonctions renvoyant Nothing ne peuvent pas prendre de paramètres" } },
+        { "id": "c", "label": { "en": "SecurityException does not extend Throwable", "fr": "SecurityException n'étend pas Throwable" } },
+        { "id": "d", "label": { "en": "deleteAll must catch the SecurityException itself", "fr": "deleteAll doit attraper elle-même la SecurityException" } }
+      ],
+      "answerId": "a",
+      "explanation": {
+        "en": "The compiler trusts the declared Nothing return type without checking that every path throws. Here it's actually only ever called when !user.isAdmin, so it happens to always throw at runtime — but the function's own body is unsound in isolation and would silently misbehave under any other call site. Nothing-returning functions should be a single unconditional throw.",
+        "fr": "Le compilateur fait confiance au type de retour Nothing déclaré sans vérifier que chaque chemin lève. Ici elle n'est en fait appelée que quand !user.isAdmin, donc elle lève bien toujours à l'exécution — mais le corps de la fonction est en soi non-sûr et se comporterait mal silencieusement sous tout autre site d'appel. Les fonctions renvoyant Nothing devraient être un unique throw inconditionnel."
+      }
+    }
+  ]
+}
